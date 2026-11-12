@@ -17,6 +17,9 @@
     ],
     "client": [
       "me.giridharan.itemcounter.client.ItemCounterClientMod"
+    ],
+    "modmenu": [
+      "me.giridharan.itemcounter.config.ItemCounterModMenu"
     ]
   },
   "depends": {
