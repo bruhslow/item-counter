@@ -1,24 +1,22 @@
 package me.giridharan.itemcounter.config;
 
 import me.giridharan.itemcounter.counter.CounterManager;
-import me.giridharan.itemcounter.counter.CounterSign;
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;
 import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
 import me.shedaniel.clothconfig2.api.ModifierKeyCode;
 import me.shedaniel.clothconfig2.impl.builders.SubCategoryBuilder;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-
-import java.util.Map;
 
 public class ItemCounterConfigScreen {
 
     public static Screen create(Screen parent) {
         ItemCounterConfig config = ItemCounterConfig.getInstance();
 
-        // Sync any active in-world signs into config so they appear in GUI named by coordinates
+        // Sync any active in-world signs into config
         for (BlockPos pos : CounterManager.getActiveCounters().keySet()) {
             config.getOrCreateSignConfig(pos.getX(), pos.getY(), pos.getZ());
         }
@@ -32,7 +30,20 @@ public class ItemCounterConfigScreen {
         // ==================== Category 1: General & Keys ====================
         ConfigCategory general = builder.getOrCreateCategory(Component.literal("General"));
 
-        // 1. Keybind for Opening GUI (Starts UNBOUND / NONE)
+        // Tracking variable for 2-step confirmation when enabling coordinates
+        final boolean[] requestedShowCoords = new boolean[]{ config.showCoordinatesInChat };
+
+        // 1. Coordinates Privacy Toggle (DISABLED BY DEFAULT!)
+        general.addEntry(entryBuilder.startBooleanToggle(
+                        Component.literal("Show Coordinates in Chat"),
+                        config.showCoordinatesInChat
+                )
+                .setDefaultValue(false)
+                .setSaveConsumer(val -> requestedShowCoords[0] = val)
+                .setTooltip(Component.literal("DISABLED BY DEFAULT to prevent leaking farm coordinates in chat. Turning this ON requires 2 confirmations."))
+                .build());
+
+        // 2. Keybind for Opening GUI (Starts UNBOUND / NONE)
         general.addEntry(entryBuilder.startModifierKeyCodeField(
                         Component.literal("Open Config Menu Keybind"),
                         config.getOpenGuiKey()
@@ -45,7 +56,7 @@ public class ItemCounterConfigScreen {
                 .setTooltip(Component.literal("Custom keybind or multi-key combination (e.g. Ctrl + O). Starts Unbound (NONE)."))
                 .build());
 
-        // 2. Keybind for Quick Reset / Restart of Closest Counter (Starts UNBOUND / NONE)
+        // 3. Keybind for Quick Reset / Restart of Closest Counter (Starts UNBOUND / NONE)
         general.addEntry(entryBuilder.startModifierKeyCodeField(
                         Component.literal("Quick Restart Counter Keybind"),
                         config.getResetCounterKey()
@@ -58,7 +69,7 @@ public class ItemCounterConfigScreen {
                 .setTooltip(Component.literal("Optional keybind to instantly restart the nearest counter test. Starts Unbound (NONE)."))
                 .build());
 
-        // 3. Default Timer Duration
+        // 4. Default Timer Duration
         general.addEntry(entryBuilder.startIntField(
                         Component.literal("Default Test Duration (Seconds)"),
                         config.defaultTimerSeconds
@@ -70,7 +81,7 @@ public class ItemCounterConfigScreen {
                 .setTooltip(Component.literal("Default countdown timer in seconds for new counters (e.g. 10, 30, 60)."))
                 .build());
 
-        // 4. Show In-World 3D Hologram
+        // 5. Show In-World 3D Hologram
         general.addEntry(entryBuilder.startBooleanToggle(
                         Component.literal("Show 3D In-World Hologram"),
                         config.showHologram
@@ -80,7 +91,7 @@ public class ItemCounterConfigScreen {
                 .setTooltip(Component.literal("Displays live floating 3D text directly above the sign board in the world."))
                 .build());
 
-        // 5. Strict In-Front Directional Detection
+        // 6. Strict In-Front Directional Detection
         general.addEntry(entryBuilder.startBooleanToggle(
                         Component.literal("Strict In-Front Detection Only"),
                         config.strictInFrontOnly
@@ -93,7 +104,7 @@ public class ItemCounterConfigScreen {
         // ==================== Category 2: Live Watch Sidebar HUD ====================
         ConfigCategory hudCat = builder.getOrCreateCategory(Component.literal("Sidebar HUD"));
 
-        // 6. Live Watch On-Screen HUD Toggle
+        // 7. Live Watch On-Screen HUD Toggle
         hudCat.addEntry(entryBuilder.startBooleanToggle(
                         Component.literal("Enable Sidebar HUD"),
                         config.showLiveWatchHud
@@ -103,7 +114,7 @@ public class ItemCounterConfigScreen {
                 .setTooltip(Component.literal("Displays a movable live on-screen sidebar box showing count, speed, and time."))
                 .build());
 
-        // 7. Show Money in Sidebar Toggle
+        // 8. Show Money in Sidebar Toggle
         hudCat.addEntry(entryBuilder.startBooleanToggle(
                         Component.literal("Show Money / Earnings in Sidebar"),
                         config.showMoneyInHud
@@ -113,7 +124,7 @@ public class ItemCounterConfigScreen {
                 .setTooltip(Component.literal("Calculates and displays total value and hourly rate alongside item counts."))
                 .build());
 
-        // 8. Currency Symbol
+        // 9. Currency Symbol
         hudCat.addEntry(entryBuilder.startStrField(
                         Component.literal("Currency Symbol"),
                         config.currencySymbol
@@ -123,12 +134,12 @@ public class ItemCounterConfigScreen {
                 .setTooltip(Component.literal("Currency prefix to display (e.g. $, €, £, Coins)."))
                 .build());
 
-        // 9. Interactive Drag-and-Drop Explanation
+        // 10. Interactive Drag-and-Drop Explanation
         hudCat.addEntry(entryBuilder.startTextDescription(
                 Component.literal("§e💡 Move Anywhere: §fType §b/counter hud §for §b/counter move §fin chat to click and drag the sidebar anywhere with your mouse!")
         ).build());
 
-        // 10. Manual Coordinates
+        // 11. Manual Coordinates
         hudCat.addEntry(entryBuilder.startIntField(
                         Component.literal("Sidebar X Position (Pixels)"),
                         config.liveWatchX
@@ -167,7 +178,6 @@ public class ItemCounterConfigScreen {
                 .setTooltip(Component.literal("Price applied to any item without a specific price configured."))
                 .build());
 
-        // Standard Farm Item Prices
         addPriceField(priceCat, entryBuilder, config, "Iron Ingot", "iron_ingot", 10.0);
         addPriceField(priceCat, entryBuilder, config, "Gold Ingot", "gold_ingot", 25.0);
         addPriceField(priceCat, entryBuilder, config, "Diamond", "diamond", 100.0);
@@ -189,7 +199,7 @@ public class ItemCounterConfigScreen {
         ConfigCategory signsCat = builder.getOrCreateCategory(Component.literal("Sign Boards & Farms"));
 
         signsCat.addEntry(entryBuilder.startTextDescription(
-                Component.literal("§e✦ All signs placed in your world with 'counter' are listed here named by coordinates. You can rename them, choose if they show in the sidebar, and filter specific items!")
+                Component.literal("§e✦ All signs placed in your world with 'counter' are listed here. You can rename them, choose if they show in the sidebar, and filter specific items!")
         ).build());
 
         if (config.signConfigs.isEmpty()) {
@@ -198,15 +208,16 @@ public class ItemCounterConfigScreen {
             ).build());
         } else {
             for (SignConfigData data : config.signConfigs.values()) {
+                String locTag = config.showCoordinatesInChat ? (" §7(" + data.x + ", " + data.y + ", " + data.z + ")") : "";
                 SubCategoryBuilder signSub = entryBuilder.startSubCategory(
-                        Component.literal("§6" + data.getDisplayName() + " §7(" + data.x + ", " + data.y + ", " + data.z + ")")
+                        Component.literal("§6" + data.getDisplayName() + locTag)
                 );
 
                 signSub.add(entryBuilder.startStrField(
                                 Component.literal("Custom Sign Name"),
                                 data.customName
                         )
-                        .setDefaultValue("Sign (" + data.x + ", " + data.y + ", " + data.z + ")")
+                        .setDefaultValue(data.getDisplayName(true))
                         .setSaveConsumer(val -> data.customName = val)
                         .setTooltip(Component.literal("Rename this sign board (e.g. Iron Farm, Gold Line, Pipeline A)"))
                         .build());
@@ -230,7 +241,7 @@ public class ItemCounterConfigScreen {
                         .build());
 
                 signSub.add(entryBuilder.startTextDescription(
-                        Component.literal("§7World Position: §eX=" + data.x + ", Y=" + data.y + ", Z=" + data.z)
+                        Component.literal(config.showCoordinatesInChat ? ("§7World Position: §eX=" + data.x + ", Y=" + data.y + ", Z=" + data.z) : "§8[Location Coordinates Hidden for Privacy]")
                 ).build());
 
                 signsCat.addEntry(signSub.build());
@@ -250,7 +261,7 @@ public class ItemCounterConfigScreen {
                 .setSaveConsumer(val -> newCoords[2] = val).build());
         addSub.add(entryBuilder.startStrField(Component.literal("Sign Name"), "")
                 .setSaveConsumer(val -> newName[0] = val)
-                .setTooltip(Component.literal("Leave empty to name automatically by coordinates."))
+                .setTooltip(Component.literal("Leave empty to name automatically."))
                 .build());
 
         addSub.add(entryBuilder.startBooleanToggle(Component.literal("Confirm Add Sign on Save"), false)
@@ -264,7 +275,23 @@ public class ItemCounterConfigScreen {
 
         signsCat.addEntry(addSub.build());
 
-        builder.setSavingRunnable(config::save);
+        // Saving logic with 2-step confirmation when enabling coordinates
+        builder.setSavingRunnable(() -> {
+            boolean wasEnabled = config.showCoordinatesInChat;
+            boolean wantsEnabled = requestedShowCoords[0];
+
+            if (!wasEnabled && wantsEnabled) {
+                // Must ask TWO TIMES before enabling coordinates!
+                Minecraft client = Minecraft.getInstance();
+                ItemCounterConfirmation.requestEnableCoordinates(client, parent, () -> {
+                    config.showCoordinatesInChat = true;
+                    config.save();
+                });
+            } else {
+                config.showCoordinatesInChat = wantsEnabled;
+                config.save();
+            }
+        });
 
         return builder.build();
     }

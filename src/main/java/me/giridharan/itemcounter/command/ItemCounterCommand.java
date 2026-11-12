@@ -5,6 +5,7 @@ import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import me.giridharan.itemcounter.config.ItemCounterConfig;
 import me.giridharan.itemcounter.config.ItemCounterConfigScreen;
+import me.giridharan.itemcounter.config.ItemCounterConfirmation;
 import me.giridharan.itemcounter.config.ItemCounterHudEditScreen;
 import me.giridharan.itemcounter.config.SignConfigData;
 import me.giridharan.itemcounter.counter.CounterManager;
@@ -26,6 +27,8 @@ public class ItemCounterCommand {
                 .then(ClientCommands.literal("menu").executes(ctx -> openGui()))
                 .then(ClientCommands.literal("hud").executes(ctx -> openHudEditor()))
                 .then(ClientCommands.literal("move").executes(ctx -> openHudEditor()))
+                .then(ClientCommands.literal("coords").executes(ctx -> toggleCoordinates(ctx.getSource())))
+                .then(ClientCommands.literal("showcoords").executes(ctx -> toggleCoordinates(ctx.getSource())))
                 .then(ClientCommands.literal("help").executes(ctx -> showHelp(ctx.getSource())))
                 .then(ClientCommands.literal("list").executes(ctx -> listCounters(ctx.getSource())))
                 .then(ClientCommands.literal("clear").executes(ctx -> clearCounters(ctx.getSource())))
@@ -46,6 +49,8 @@ public class ItemCounterCommand {
                 .then(ClientCommands.literal("menu").executes(ctx -> openGui()))
                 .then(ClientCommands.literal("hud").executes(ctx -> openHudEditor()))
                 .then(ClientCommands.literal("move").executes(ctx -> openHudEditor()))
+                .then(ClientCommands.literal("coords").executes(ctx -> toggleCoordinates(ctx.getSource())))
+                .then(ClientCommands.literal("showcoords").executes(ctx -> toggleCoordinates(ctx.getSource())))
                 .then(ClientCommands.literal("help").executes(ctx -> showHelp(ctx.getSource())))
                 .then(ClientCommands.literal("list").executes(ctx -> listCounters(ctx.getSource())))
                 .then(ClientCommands.literal("clear").executes(ctx -> clearCounters(ctx.getSource())))
@@ -76,16 +81,39 @@ public class ItemCounterCommand {
         return 1;
     }
 
+    private static int toggleCoordinates(FabricClientCommandSource source) {
+        Minecraft client = Minecraft.getInstance();
+        ItemCounterConfig config = ItemCounterConfig.getInstance();
+
+        if (config.showCoordinatesInChat) {
+            // Turning OFF is instant and safe
+            config.showCoordinatesInChat = false;
+            config.save();
+            source.sendFeedback(Component.literal("§6[Item Counter] §aCoordinates in chat have been §c§lHIDDEN§a (safe mode)."));
+            return 1;
+        } else {
+            // Turning ON requires 2-step confirmation prompt!
+            client.execute(() -> {
+                ItemCounterConfirmation.requestEnableCoordinates(client, null, () -> {
+                    config.showCoordinatesInChat = true;
+                    config.save();
+                });
+            });
+            return 1;
+        }
+    }
+
     private static int showHelp(FabricClientCommandSource source) {
         source.sendFeedback(Component.literal("§6§l=== Item Counter Guide (Fabric 26.2) ==="));
         source.sendFeedback(Component.literal("§e1. §fPlace a sign and write §bcounter §fon it."));
-        source.sendFeedback(Component.literal("   §7Signs are named automatically by coordinates e.g. §eSign (100, 64, -200)§7."));
+        source.sendFeedback(Component.literal("   §7Coordinates are §c§lHIDDEN§7 by default to protect your base location."));
         source.sendFeedback(Component.literal("§e2. §fOpen Settings: §b/counter gui §7(or press your bound key)"));
         source.sendFeedback(Component.literal("   §7- Rename each sign board (e.g. 'Iron Farm', 'Gold Line')"));
         source.sendFeedback(Component.literal("   §7- Filter specific items to count for each sign"));
         source.sendFeedback(Component.literal("   §7- Set prices for items & toggle money display in sidebar"));
         source.sendFeedback(Component.literal("§e3. §fMove Sidebar HUD: §b/counter hud §7(click & drag anywhere)"));
         source.sendFeedback(Component.literal("§e4. §fCommands:"));
+        source.sendFeedback(Component.literal("   §7- §b/counter coords §f: Toggle coordinate privacy (requires 2 confirmations to enable)"));
         source.sendFeedback(Component.literal("   §7- §b/counter rename <name> §f: Quick rename nearest counter"));
         source.sendFeedback(Component.literal("   §7- §b/counter price <item> <cost> §f: Set item price"));
         source.sendFeedback(Component.literal("   §7- §b/counter reset §f: Restart nearest counter"));
@@ -106,10 +134,11 @@ public class ItemCounterCommand {
             BlockPos pos = entry.getKey();
             CounterSign c = entry.getValue();
             String name = c.getSignCustomName();
+            String posStr = config.showCoordinatesInChat ? (" §7(" + pos.toShortString() + ")") : "";
             double money = c.getTotalMoneyValue();
             String moneyStr = config.showMoneyInHud ? (" §7| Value: §a" + config.currencySymbol + String.format("%,.0f", money)) : "";
 
-            source.sendFeedback(Component.literal("§e- §f" + name + " §7(" + pos.toShortString() + ") §7Mode: §b" + c.getDisplayName()
+            source.sendFeedback(Component.literal("§e- §f" + name + posStr + " §7Mode: §b" + c.getDisplayName()
                     + " §7| Items: §a" + c.getTotalItemsCounted() + " §7(~" + (int) c.getRatePerMinute() + "/m)" + moneyStr));
         }
         return 1;
@@ -138,7 +167,9 @@ public class ItemCounterCommand {
             SignConfigData data = ItemCounterConfig.getInstance().getOrCreateSignConfig(closest.getX(), closest.getY(), closest.getZ());
             data.customName = newName;
             ItemCounterConfig.getInstance().save();
-            source.sendFeedback(Component.literal("§6[Item Counter] §aRenamed sign at §e" + closest.toShortString() + " §ato: §b§l" + newName));
+
+            String posStr = ItemCounterConfig.getInstance().showCoordinatesInChat ? (" at §e" + closest.toShortString()) : "";
+            source.sendFeedback(Component.literal("§6[Item Counter] §aRenamed sign" + posStr + " §ato: §b§l" + newName));
             return 1;
         }
         return 0;
@@ -174,7 +205,8 @@ public class ItemCounterCommand {
         if (closest != null) {
             CounterSign c = counters.get(closest);
             c.restart();
-            source.sendFeedback(Component.literal("§6[Item Counter] §aRestarted " + c.getSignCustomName() + " (" + closest.toShortString() + ")!"));
+            String posStr = ItemCounterConfig.getInstance().showCoordinatesInChat ? (" (" + closest.toShortString() + ")") : "";
+            source.sendFeedback(Component.literal("§6[Item Counter] §aRestarted " + c.getSignCustomName() + posStr + "!"));
         }
         return 1;
     }

@@ -20,11 +20,16 @@ public class SignConfigData {
         this.itemFilter = "";
     }
 
-    public String getDisplayName() {
+    public String getDisplayName(boolean showCoords) {
         if (customName != null && !customName.trim().isEmpty()) {
             return customName.trim();
         }
-        return "Sign (" + x + ", " + y + ", " + z + ")";
+        return showCoords ? ("Sign (" + x + ", " + y + ", " + z + ")") : "Sign Counter";
+    }
+
+    public String getDisplayName() {
+        ItemCounterConfig config = ItemCounterConfig.getInstance();
+        return getDisplayName(config.showCoordinatesInChat);
     }
 
     public String getKey() {

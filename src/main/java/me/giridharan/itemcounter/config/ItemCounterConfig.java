@@ -21,6 +21,9 @@ public class ItemCounterConfig {
     public boolean showHologram = true;
     public boolean strictInFrontOnly = true;
 
+    // Anti-Leak Privacy: Coordinates hidden from chat messages (DISABLED BY DEFAULT!)
+    public boolean showCoordinatesInChat = false;
+
     // Live Watch On-Screen Sidebar HUD
     public boolean showLiveWatchHud = true;
     public boolean showMoneyInHud = true;
