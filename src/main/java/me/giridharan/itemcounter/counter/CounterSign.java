@@ -1,9 +1,12 @@
 package me.giridharan.itemcounter.counter;
 
 import me.giridharan.itemcounter.config.ItemCounterConfig;
+import me.giridharan.itemcounter.config.SignConfigData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -14,14 +17,11 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class CounterSign {
 
-    public record CountRecord(long timeMs, int count) {}
+    public record CountRecord(long timeMs, int count, double money) {}
 
     public enum Mode {
         SEC_10(10, "10s"),
@@ -63,11 +63,14 @@ public class CounterSign {
     private boolean isFinished = false;
     private int elapsedTicks = 0;
     private int totalItemsCounted = 0;
+    private double totalMoneyValue = 0.0;
 
     // Entity deduplication so passing items are counted only once
     private final Set<Integer> countedEntityIds = new HashSet<>();
     // Sliding window of records for rate calculation
     private final List<CountRecord> itemRecords = new ArrayList<>();
+    // Item counts by ID
+    private final Map<String, Integer> itemCounts = new LinkedHashMap<>();
 
     public CounterSign(BlockPos pos) {
         this.pos = pos;
@@ -118,6 +121,14 @@ public class CounterSign {
         return mode.displayName;
     }
 
+    public String getSignCustomName() {
+        SignConfigData data = ItemCounterConfig.getInstance().getSignConfig(pos.getX(), pos.getY(), pos.getZ());
+        if (data != null) {
+            return data.getDisplayName();
+        }
+        return "Sign (" + pos.getX() + ", " + pos.getY() + ", " + pos.getZ() + ")";
+    }
+
     public void cycleMode(Player player) {
         this.customDurationSeconds = 0;
         this.mode = this.mode.next();
@@ -133,8 +144,10 @@ public class CounterSign {
         this.isFinished = false;
         this.elapsedTicks = 0;
         this.totalItemsCounted = 0;
+        this.totalMoneyValue = 0.0;
         this.countedEntityIds.clear();
         this.itemRecords.clear();
+        this.itemCounts.clear();
     }
 
     public void tick(Level level, Player localPlayer) {
@@ -157,42 +170,57 @@ public class CounterSign {
         Direction targetDir = getActiveDetectionDirection();
         BlockPos frontPos = pos.relative(targetDir);
 
-        boolean strict = ItemCounterConfig.getInstance().strictInFrontOnly;
+        ItemCounterConfig config = ItemCounterConfig.getInstance();
+        boolean strict = config.strictInFrontOnly;
         AABB box;
         if (strict) {
-            // Strictly the 1-block flow right in front of the sign face
             box = new AABB(
                     frontPos.getX() + 0.02, frontPos.getY() - 0.75, frontPos.getZ() + 0.02,
                     frontPos.getX() + 0.98, frontPos.getY() + 1.25, frontPos.getZ() + 0.98
             );
         } else {
-            // Slightly broader detection if user disabled strict mode
             box = new AABB(frontPos).inflate(0.5, 0.8, 0.5);
         }
+
+        SignConfigData signConfig = config.getOrCreateSignConfig(pos.getX(), pos.getY(), pos.getZ());
+        String itemFilter = signConfig.itemFilter != null ? signConfig.itemFilter.trim().toLowerCase() : "";
 
         List<Entity> entities = level.getEntities((Entity) null, box, entity -> entity instanceof ItemEntity || entity.isAlive());
 
         for (Entity entity : entities) {
-            // Must be strictly inside the detection box
             if (!box.intersects(entity.getBoundingBox())) {
                 continue;
             }
 
-            // Must be MOVING (flowing in water, sliding on ice, falling, etc.) - NOT stationary
             if (!isEntityMoving(entity)) {
                 continue;
+            }
+
+            int count = 1;
+            String rawId = "entity";
+            if (entity instanceof ItemEntity itemEntity) {
+                count = Math.max(1, itemEntity.getItem().getCount());
+                Identifier id = BuiltInRegistries.ITEM.getKey(itemEntity.getItem().getItem());
+                rawId = id.getPath();
+
+                // Apply custom item filter if set by the user in GUI
+                if (!itemFilter.isEmpty()) {
+                    if (!matchesFilter(rawId, id.toString(), itemFilter)) {
+                        continue;
+                    }
+                }
             }
 
             if (!countedEntityIds.contains(entity.getId())) {
                 countedEntityIds.add(entity.getId());
 
-                int count = 1;
-                if (entity instanceof ItemEntity itemEntity) {
-                    count = Math.max(1, itemEntity.getItem().getCount());
-                }
+                double unitPrice = config.getItemPrice(rawId);
+                double money = count * unitPrice;
 
                 totalItemsCounted += count;
-                itemRecords.add(new CountRecord(now, count));
+                totalMoneyValue += money;
+                itemCounts.merge(rawId, count, Integer::sum);
+                itemRecords.add(new CountRecord(now, count, money));
             }
         }
 
@@ -206,13 +234,24 @@ public class CounterSign {
         }
     }
 
+    private static boolean matchesFilter(String path, String full, String filter) {
+        if (filter == null || filter.trim().isEmpty()) return true;
+        String[] parts = filter.split("[,;\\s]+");
+        for (String part : parts) {
+            part = part.trim().toLowerCase();
+            if (!part.isEmpty() && (path.toLowerCase().contains(part) || full.toLowerCase().contains(part))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private boolean isEntityMoving(Entity entity) {
         Vec3 vel = entity.getDeltaMovement();
         double speedSqr = vel.x * vel.x + vel.y * vel.y + vel.z * vel.z;
         if (speedSqr > 0.00005) {
             return true;
         }
-        // Also verify position difference from previous tick
         double dx = entity.getX() - entity.xOld;
         double dy = entity.getY() - entity.yOld;
         double dz = entity.getZ() - entity.zOld;
@@ -226,9 +265,17 @@ public class CounterSign {
         if (player != null) {
             player.playSound(SoundEvents.PLAYER_LEVELUP, 1.0f, 1.4f);
             double rateMin = getRatePerMinute();
+            double moneyRateMin = getMoneyRatePerMinute();
+            ItemCounterConfig config = ItemCounterConfig.getInstance();
+
+            String moneyStr = config.showMoneyInHud
+                    ? " §7| §aValue: §e§l" + config.currencySymbol + String.format("%,.0f", totalMoneyValue) + " §7(§a~" + config.currencySymbol + String.format("%,.0f", moneyRateMin) + "/min§7)"
+                    : "";
+
             player.sendSystemMessage(Component.literal(
-                    "§6§l[Item Counter] §a§l✔ " + getDisplayName() + " Test Complete! §e§l"
-                            + totalItemsCounted + " items §7counted (§b~" + String.format("%.0f", rateMin) + " items/min§7) at " + pos.toShortString()
+                    "§6§l[Item Counter] §a§l✔ " + getSignCustomName() + " (" + getDisplayName() + ") Complete! §e§l"
+                            + totalItemsCounted + " items §7(§b~" + String.format("%.0f", rateMin) + "/min§7)"
+                            + moneyStr
             ));
         }
     }
@@ -237,7 +284,6 @@ public class CounterSign {
         if (itemRecords.isEmpty()) return 0.0;
         int targetSeconds = getTargetDurationSeconds();
         if (targetSeconds <= 0) {
-            // Live rate over active window (up to 30s)
             long windowMs = Math.min(30000L, Math.max(1000L, elapsedTicks * 50L));
             long sum = 0;
             for (CountRecord r : itemRecords) sum += r.count();
@@ -250,6 +296,28 @@ public class CounterSign {
 
     public double getRatePerMinute() {
         return getRatePerSecond() * 60.0;
+    }
+
+    public double getMoneyRatePerMinute() {
+        if (itemRecords.isEmpty()) return 0.0;
+        int targetSeconds = getTargetDurationSeconds();
+        if (targetSeconds <= 0) {
+            long windowMs = Math.min(30000L, Math.max(1000L, elapsedTicks * 50L));
+            double sum = 0.0;
+            for (CountRecord r : itemRecords) sum += r.money();
+            return (sum * 1000.0 * 60.0) / windowMs;
+        } else {
+            int secondsPassed = Math.max(1, Math.min(targetSeconds, elapsedTicks / 20));
+            return (totalMoneyValue / secondsPassed) * 60.0;
+        }
+    }
+
+    public double getTotalMoneyValue() {
+        return totalMoneyValue;
+    }
+
+    public Map<String, Integer> getItemCounts() {
+        return itemCounts;
     }
 
     public int getRemainingSeconds() {

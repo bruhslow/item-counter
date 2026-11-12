@@ -2,6 +2,7 @@ package me.giridharan.itemcounter.config;
 
 import me.giridharan.itemcounter.counter.CounterManager;
 import me.giridharan.itemcounter.counter.CounterSign;
+import me.giridharan.itemcounter.renderer.ItemCounterHudRenderer;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
@@ -18,8 +19,6 @@ public class ItemCounterHudEditScreen extends Screen {
 
     private int hudX;
     private int hudY;
-    private static final int BOX_WIDTH = 150;
-    private static final int BOX_HEIGHT = 48;
 
     private boolean isDragging = false;
     private int dragOffsetX = 0;
@@ -37,7 +36,6 @@ public class ItemCounterHudEditScreen extends Screen {
     protected void init() {
         super.init();
 
-        // Clamp coordinates within current window size
         clampCoordinates();
 
         // Save & Exit button
@@ -54,9 +52,14 @@ public class ItemCounterHudEditScreen extends Screen {
         }).bounds(this.width / 2 + 5, this.height - 30, 100, 20).build());
     }
 
+    private int getCardHeight() {
+        return config.showMoneyInHud ? ItemCounterHudRenderer.CARD_HEIGHT_WITH_MONEY : ItemCounterHudRenderer.CARD_HEIGHT_NO_MONEY;
+    }
+
     private void clampCoordinates() {
-        hudX = Math.max(2, Math.min(this.width - BOX_WIDTH - 2, hudX));
-        hudY = Math.max(2, Math.min(this.height - BOX_HEIGHT - 35, hudY));
+        int cardH = getCardHeight();
+        hudX = Math.max(2, Math.min(this.width - ItemCounterHudRenderer.CARD_WIDTH - 2, hudX));
+        hudY = Math.max(2, Math.min(this.height - cardH - 35, hudY));
     }
 
     private void savePosition() {
@@ -71,7 +74,7 @@ public class ItemCounterHudEditScreen extends Screen {
         graphics.fill(0, 0, this.width, this.height, 0x60000000);
 
         // Header instructions
-        graphics.centeredText(this.font, Component.literal("§6§l⚡ Item Counter - Move Live Watch HUD"), this.width / 2, 12, 0xFFFFFF);
+        graphics.centeredText(this.font, Component.literal("§6§l⚡ Item Counter - Move Live Watch Sidebar HUD"), this.width / 2, 12, 0xFFFFFF);
         graphics.centeredText(this.font, Component.literal("§7Click and drag the box to place it anywhere on screen. Click Save when finished."), this.width / 2, 24, 0xAAAAAA);
 
         // Render the HUD Box preview
@@ -82,52 +85,74 @@ public class ItemCounterHudEditScreen extends Screen {
     }
 
     private void renderHudBox(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
-        boolean hovered = mouseX >= hudX && mouseX <= hudX + BOX_WIDTH && mouseY >= hudY && mouseY <= hudY + BOX_HEIGHT;
+        int cardW = ItemCounterHudRenderer.CARD_WIDTH;
+        int cardH = getCardHeight();
+
+        boolean hovered = mouseX >= hudX && mouseX <= hudX + cardW && mouseY >= hudY && mouseY <= hudY + cardH;
 
         // Background
         int bgColor = isDragging ? 0xD0101520 : (hovered ? 0xB0151E28 : 0x90000000);
-        graphics.fill(hudX, hudY, hudX + BOX_WIDTH, hudY + BOX_HEIGHT, bgColor);
+        graphics.fill(hudX, hudY, hudX + cardW, hudY + cardH, bgColor);
 
         // Outline border
         int borderColor = isDragging ? 0xFF00FFAA : (hovered ? 0xFFFFAA00 : 0xFF555555);
-        graphics.outline(hudX, hudY, BOX_WIDTH, BOX_HEIGHT, borderColor);
+        graphics.outline(hudX, hudY, cardW, cardH, borderColor);
 
         // Get actual active counter or preview data
         CounterSign sampleCounter = getClosestActiveCounter();
-        String headerTitle;
-        String countStr;
-        String speedStr;
+        String signName;
+        String modeName;
+        String status;
+        int count;
+        double rateMin;
+        double money;
+        double moneyRate;
         String timerStr;
 
         if (sampleCounter != null) {
-            String modeName = sampleCounter.getDisplayName();
-            String status = sampleCounter.isFinished() ? "§a[DONE]" : (sampleCounter.isRunning() ? "§e[LIVE]" : "§7[PAUSED]");
-            headerTitle = "§6⚡ Counter §b[" + modeName + "] " + status;
-            countStr = "§fItems: §e§l" + sampleCounter.getTotalItemsCounted();
-            speedStr = "§bSpeed: §a~" + String.format("%.0f", sampleCounter.getRatePerMinute()) + "/m §7(" + String.format("%.1f", sampleCounter.getRatePerSecond()) + "/s)";
-            if (sampleCounter.getTargetDurationSeconds() <= 0) {
-                timerStr = "§a● Live Rate Monitor";
-            } else if (sampleCounter.isFinished()) {
-                timerStr = "§6★ Test Completed";
-            } else {
-                timerStr = "§a⏳ " + sampleCounter.getRemainingSeconds() + "s remaining";
-            }
+            signName = sampleCounter.getSignCustomName();
+            modeName = sampleCounter.getDisplayName();
+            status = sampleCounter.isFinished() ? "§a[DONE]" : (sampleCounter.isRunning() ? "§e[LIVE]" : "§7[PAUSED]");
+            count = sampleCounter.getTotalItemsCounted();
+            rateMin = sampleCounter.getRatePerMinute();
+            money = sampleCounter.getTotalMoneyValue();
+            moneyRate = sampleCounter.getMoneyRatePerMinute();
+            timerStr = sampleCounter.getTargetDurationSeconds() <= 0 ? "§a● Live Rate Monitor" : "§a⏳ " + sampleCounter.getRemainingSeconds() + "s remaining";
         } else {
-            // Default Preview Data
-            headerTitle = "§6⚡ Counter §b[30s] §e[LIVE]";
-            countStr = "§fItems: §e§l142 items";
-            speedStr = "§bSpeed: §a~284/m §7(4.7/s)";
+            signName = "Iron Farm (Sample)";
+            modeName = "30s";
+            status = "§e[LIVE]";
+            count = 142;
+            rateMin = 284;
+            money = 1420;
+            moneyRate = 2840;
             timerStr = "§a⏳ 15s remaining";
         }
 
+        String headerTitle = "§6⚡ " + truncate(signName, 14) + " §b[" + modeName + "] " + status;
+        String countStr = "§fItems: §e§l" + count + " items §7(~" + String.format("%.0f", rateMin) + "/m)";
+
         graphics.text(this.font, Component.literal(headerTitle), hudX + 5, hudY + 4, 0xFFFFFF, true);
         graphics.text(this.font, Component.literal(countStr), hudX + 5, hudY + 15, 0xFFFFFF, true);
-        graphics.text(this.font, Component.literal(speedStr), hudX + 5, hudY + 25, 0xFFFFFF, true);
-        graphics.text(this.font, Component.literal(timerStr), hudX + 5, hudY + 35, 0xFFFFFF, true);
+
+        int textY = hudY + 25;
+        if (config.showMoneyInHud) {
+            String moneyStr = "§aMoney: §e§l" + config.currencySymbol + String.format("%,.0f", money) + " §7(§a~" + config.currencySymbol + String.format("%,.0f", moneyRate) + "/m§7)";
+            graphics.text(this.font, Component.literal(moneyStr), hudX + 5, textY, 0xFFFFFF, true);
+            textY += 10;
+        }
+
+        graphics.text(this.font, Component.literal(timerStr), hudX + 5, textY, 0xFFFFFF, true);
 
         // Drag handle indicator
         String handleText = isDragging ? "§a[DRAGGING]" : "§e[✥ MOVE]";
-        graphics.text(this.font, Component.literal(handleText), hudX + BOX_WIDTH - this.font.width(handleText) - 4, hudY + 4, 0xFFFFFF, false);
+        graphics.text(this.font, Component.literal(handleText), hudX + cardW - this.font.width(handleText) - 4, hudY + 4, 0xFFFFFF, false);
+    }
+
+    private static String truncate(String text, int maxChars) {
+        if (text == null) return "";
+        if (text.length() <= maxChars) return text;
+        return text.substring(0, maxChars - 2) + "..";
     }
 
     private CounterSign getClosestActiveCounter() {
@@ -154,7 +179,10 @@ public class ItemCounterHudEditScreen extends Screen {
         if (event.button() == 0) {
             double mx = event.x();
             double my = event.y();
-            if (mx >= hudX && mx <= hudX + BOX_WIDTH && my >= hudY && my <= hudY + BOX_HEIGHT) {
+            int cardW = ItemCounterHudRenderer.CARD_WIDTH;
+            int cardH = getCardHeight();
+
+            if (mx >= hudX && mx <= hudX + cardW && my >= hudY && my <= hudY + cardH) {
                 isDragging = true;
                 dragOffsetX = (int) mx - hudX;
                 dragOffsetY = (int) my - hudY;

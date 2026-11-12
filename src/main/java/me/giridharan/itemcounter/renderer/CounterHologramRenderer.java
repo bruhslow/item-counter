@@ -53,28 +53,36 @@ public class CounterHologramRenderer {
                     continue; // Skip rendering if further than 36 blocks away
                 }
 
-                renderHologram(collector, poseStack, camera, camPos, baseX, baseY, baseZ, sign);
+                renderHologram(collector, poseStack, camera, camPos, baseX, baseY, baseZ, sign, config);
             }
         });
     }
 
-    private static void renderHologram(SubmitNodeCollector collector, PoseStack poseStack, CameraRenderState camera, Vec3 camPos, double baseX, double baseY, double baseZ, CounterSign sign) {
+    private static void renderHologram(SubmitNodeCollector collector, PoseStack poseStack, CameraRenderState camera, Vec3 camPos, double baseX, double baseY, double baseZ, CounterSign sign, ItemCounterConfig config) {
         poseStack.pushPose();
-        // Translate poseStack to sign position relative to camera origin!
+        // Translate poseStack to sign position relative to camera origin
         poseStack.translate(baseX - camPos.x, baseY - camPos.y, baseZ - camPos.z);
 
-        // Line 1: Header with mode and live status
+        // Line 1: Header with custom sign name and mode
+        String signName = sign.getSignCustomName();
         String modeName = sign.getDisplayName();
         String headerStatus = sign.isFinished() ? "§a[FINISHED]" : (sign.isRunning() ? "§e[COUNTING]" : "§7[PAUSED]");
-        Component line1 = Component.literal("§6§l⚡ ITEM COUNTER ⚡ §b[" + modeName + "] " + headerStatus);
+        Component line1 = Component.literal("§6§l⚡ " + signName + " §b[" + modeName + "] " + headerStatus);
 
-        // Line 2: Items Counted & Instant Speed
+        // Line 2: Items Counted & Speed
         double rateSec = sign.getRatePerSecond();
-        Component line2 = Component.literal("§fPassed: §e§l" + sign.getTotalItemsCounted() + " items §7(" + String.format("%.1f", rateSec) + "/s)");
-
-        // Line 3: Rate per Minute
         double rateMin = sign.getRatePerMinute();
-        Component line3 = Component.literal("§bSpeed: §a§l~" + String.format("%.0f", rateMin) + " §7items/min");
+        Component line2 = Component.literal("§fPassed: §e§l" + sign.getTotalItemsCounted() + " items §7(~" + String.format("%.0f", rateMin) + "/m)");
+
+        // Line 3: Value/Money if enabled, otherwise speed per second
+        Component line3;
+        if (config.showMoneyInHud) {
+            double totalMoney = sign.getTotalMoneyValue();
+            double moneyRateMin = sign.getMoneyRatePerMinute();
+            line3 = Component.literal("§aValue: §e§l" + config.currencySymbol + String.format("%,.0f", totalMoney) + " §7(§a~" + config.currencySymbol + String.format("%,.0f", moneyRateMin) + "/m§7)");
+        } else {
+            line3 = Component.literal("§bSpeed: §a§l~" + String.format("%.0f", rateMin) + " §7items/min §8(" + String.format("%.1f", rateSec) + "/s)");
+        }
 
         // Line 4: Timer Remaining or Restart prompt
         Component line4;

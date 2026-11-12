@@ -1,6 +1,7 @@
 package me.giridharan.itemcounter.counter;
 
 import me.giridharan.itemcounter.config.ItemCounterConfig;
+import me.giridharan.itemcounter.config.SignConfigData;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -51,7 +52,7 @@ public class CounterManager {
                 // Restart current test
                 existing.restart();
                 player.playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, 0.9f, 1.3f);
-                player.sendSystemMessage(Component.literal("§6§l[Item Counter] §aRestarted §e" + existing.getDisplayName() + " §atest! Tracking items passing through..."));
+                player.sendSystemMessage(Component.literal("§6§l[Item Counter] §aRestarted §e" + existing.getSignCustomName() + " (" + existing.getDisplayName() + ") §atest!"));
             }
             return true;
         } else {
@@ -60,8 +61,8 @@ public class CounterManager {
             activeCounters.put(pos, counter);
 
             player.playSound(SoundEvents.PLAYER_LEVELUP, 1.0f, 1.2f);
-            player.sendSystemMessage(Component.literal("§6§l[Item Counter] §aSign converted to §e" + counter.getDisplayName() + " Item Counter§a!"));
-            player.sendSystemMessage(Component.literal("§7Right-click: Restart test | Shift + Right-click: Change duration (10s, 30s, 60s, Live)."));
+            player.sendSystemMessage(Component.literal("§6§l[Item Counter] §aSign converted to §e" + counter.getSignCustomName() + " (" + counter.getDisplayName() + ")§a!"));
+            player.sendSystemMessage(Component.literal("§7Right-click: Restart test | Shift + Right-click: Change duration. Open GUI to rename or set item price!"));
             return true;
         }
     }
@@ -131,6 +132,9 @@ public class CounterManager {
 
     private static CounterSign createCounterFromSign(Level level, BlockPos pos, SignBlockEntity sign, boolean frontHas, boolean backHas) {
         CounterSign counter = new CounterSign(pos);
+
+        // Auto register / ensure config entry for this sign board
+        SignConfigData signConfig = ItemCounterConfig.getInstance().getOrCreateSignConfig(pos.getX(), pos.getY(), pos.getZ());
 
         // Determine sign front facing
         Direction frontDir = Direction.NORTH;
@@ -203,7 +207,6 @@ public class CounterManager {
         if (text.contains("live") || text.contains("inf") || text.contains("rate")) {
             return 0;
         }
-        // Check for patterns like "10s", "30s", "60s", "45s"
         String[] tokens = text.split("[\\s,:\\[\\]]+");
         for (String token : tokens) {
             token = token.trim();

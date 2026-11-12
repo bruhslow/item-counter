@@ -1,8 +1,12 @@
 package me.giridharan.itemcounter.command;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.DoubleArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
+import me.giridharan.itemcounter.config.ItemCounterConfig;
 import me.giridharan.itemcounter.config.ItemCounterConfigScreen;
 import me.giridharan.itemcounter.config.ItemCounterHudEditScreen;
+import me.giridharan.itemcounter.config.SignConfigData;
 import me.giridharan.itemcounter.counter.CounterManager;
 import me.giridharan.itemcounter.counter.CounterSign;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
@@ -26,6 +30,13 @@ public class ItemCounterCommand {
                 .then(ClientCommands.literal("list").executes(ctx -> listCounters(ctx.getSource())))
                 .then(ClientCommands.literal("clear").executes(ctx -> clearCounters(ctx.getSource())))
                 .then(ClientCommands.literal("reset").executes(ctx -> resetClosest(ctx.getSource())))
+                .then(ClientCommands.literal("rename")
+                        .then(ClientCommands.argument("name", StringArgumentType.greedyString())
+                                .executes(ctx -> renameClosest(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
+                .then(ClientCommands.literal("price")
+                        .then(ClientCommands.argument("item", StringArgumentType.word())
+                                .then(ClientCommands.argument("cost", DoubleArgumentType.doubleArg(0.0))
+                                        .executes(ctx -> setItemPrice(ctx.getSource(), StringArgumentType.getString(ctx, "item"), DoubleArgumentType.getDouble(ctx, "cost"))))))
         );
 
         // Alias /itemcounter
@@ -39,6 +50,13 @@ public class ItemCounterCommand {
                 .then(ClientCommands.literal("list").executes(ctx -> listCounters(ctx.getSource())))
                 .then(ClientCommands.literal("clear").executes(ctx -> clearCounters(ctx.getSource())))
                 .then(ClientCommands.literal("reset").executes(ctx -> resetClosest(ctx.getSource())))
+                .then(ClientCommands.literal("rename")
+                        .then(ClientCommands.argument("name", StringArgumentType.greedyString())
+                                .executes(ctx -> renameClosest(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
+                .then(ClientCommands.literal("price")
+                        .then(ClientCommands.argument("item", StringArgumentType.word())
+                                .then(ClientCommands.argument("cost", DoubleArgumentType.doubleArg(0.0))
+                                        .executes(ctx -> setItemPrice(ctx.getSource(), StringArgumentType.getString(ctx, "item"), DoubleArgumentType.getDouble(ctx, "cost"))))))
         );
     }
 
@@ -60,19 +78,18 @@ public class ItemCounterCommand {
 
     private static int showHelp(FabricClientCommandSource source) {
         source.sendFeedback(Component.literal("§6§l=== Item Counter Guide (Fabric 26.2) ==="));
-        source.sendFeedback(Component.literal("§e1. §fPlace a sign in front of or on your farm's water/ice stream."));
-        source.sendFeedback(Component.literal("§e2. §fWrite §bcounter §fon the sign (e.g. §b[counter] §for §bcounter 10s§f)."));
-        source.sendFeedback(Component.literal("   §7(Signs ONLY convert into item counters if 'counter' is typed on them!)"));
-        source.sendFeedback(Component.literal("§e3. §fItems are counted §eONLY when moving directly in front §fof the sign."));
-        source.sendFeedback(Component.literal("§e4. §fInteractions:"));
-        source.sendFeedback(Component.literal("   §7- §bRight-Click Sign: §fRestarts / zeroes current test"));
-        source.sendFeedback(Component.literal("   §7- §bShift + Right-Click: §fCycles mode (10s → 30s → 60s → Live)"));
-        source.sendFeedback(Component.literal("§eCommands:"));
-        source.sendFeedback(Component.literal("   §7- §b/counter hud §f: Drag & move the on-screen Live Watch HUD box anywhere!"));
-        source.sendFeedback(Component.literal("   §7- §b/counter gui §f: Open Settings to set custom keybind (e.g. Ctrl+O) & default time"));
-        source.sendFeedback(Component.literal("   §7- §b/counter list §f: Show active counters nearby"));
-        source.sendFeedback(Component.literal("   §7- §b/counter reset §f: Restart closest counter"));
-        source.sendFeedback(Component.literal("   §7- §b/counter clear §f: Unregister active counters"));
+        source.sendFeedback(Component.literal("§e1. §fPlace a sign and write §bcounter §fon it."));
+        source.sendFeedback(Component.literal("   §7Signs are named automatically by coordinates e.g. §eSign (100, 64, -200)§7."));
+        source.sendFeedback(Component.literal("§e2. §fOpen Settings: §b/counter gui §7(or press your bound key)"));
+        source.sendFeedback(Component.literal("   §7- Rename each sign board (e.g. 'Iron Farm', 'Gold Line')"));
+        source.sendFeedback(Component.literal("   §7- Filter specific items to count for each sign"));
+        source.sendFeedback(Component.literal("   §7- Set prices for items & toggle money display in sidebar"));
+        source.sendFeedback(Component.literal("§e3. §fMove Sidebar HUD: §b/counter hud §7(click & drag anywhere)"));
+        source.sendFeedback(Component.literal("§e4. §fCommands:"));
+        source.sendFeedback(Component.literal("   §7- §b/counter rename <name> §f: Quick rename nearest counter"));
+        source.sendFeedback(Component.literal("   §7- §b/counter price <item> <cost> §f: Set item price"));
+        source.sendFeedback(Component.literal("   §7- §b/counter reset §f: Restart nearest counter"));
+        source.sendFeedback(Component.literal("   §7- §b/counter list §f: Show all active counters & values"));
         return 1;
     }
 
@@ -83,13 +100,55 @@ public class ItemCounterCommand {
             return 1;
         }
 
+        ItemCounterConfig config = ItemCounterConfig.getInstance();
         source.sendFeedback(Component.literal("§6§l[Item Counter] Active Counters (" + counters.size() + "):"));
         for (Map.Entry<BlockPos, CounterSign> entry : counters.entrySet()) {
             BlockPos pos = entry.getKey();
             CounterSign c = entry.getValue();
-            source.sendFeedback(Component.literal("§e- §f(" + pos.toShortString() + ") §7Mode: §b" + c.getDisplayName()
-                    + " §7| Counted: §a" + c.getTotalItemsCounted() + " §7| Rate: §b~" + (int) c.getRatePerMinute() + "/min"));
+            String name = c.getSignCustomName();
+            double money = c.getTotalMoneyValue();
+            String moneyStr = config.showMoneyInHud ? (" §7| Value: §a" + config.currencySymbol + String.format("%,.0f", money)) : "";
+
+            source.sendFeedback(Component.literal("§e- §f" + name + " §7(" + pos.toShortString() + ") §7Mode: §b" + c.getDisplayName()
+                    + " §7| Items: §a" + c.getTotalItemsCounted() + " §7(~" + (int) c.getRatePerMinute() + "/m)" + moneyStr));
         }
+        return 1;
+    }
+
+    private static int renameClosest(FabricClientCommandSource source, String newName) {
+        Map<BlockPos, CounterSign> counters = CounterManager.getActiveCounters();
+        if (counters.isEmpty()) {
+            source.sendFeedback(Component.literal("§c[Item Counter] No active counters found nearby to rename!"));
+            return 0;
+        }
+
+        BlockPos playerPos = source.getPlayer().blockPosition();
+        BlockPos closest = null;
+        double closestDist = Double.MAX_VALUE;
+
+        for (BlockPos pos : counters.keySet()) {
+            double d = pos.distSqr(playerPos);
+            if (d < closestDist) {
+                closestDist = d;
+                closest = pos;
+            }
+        }
+
+        if (closest != null) {
+            SignConfigData data = ItemCounterConfig.getInstance().getOrCreateSignConfig(closest.getX(), closest.getY(), closest.getZ());
+            data.customName = newName;
+            ItemCounterConfig.getInstance().save();
+            source.sendFeedback(Component.literal("§6[Item Counter] §aRenamed sign at §e" + closest.toShortString() + " §ato: §b§l" + newName));
+            return 1;
+        }
+        return 0;
+    }
+
+    private static int setItemPrice(FabricClientCommandSource source, String item, double cost) {
+        ItemCounterConfig config = ItemCounterConfig.getInstance();
+        config.setItemPrice(item, cost);
+        config.save();
+        source.sendFeedback(Component.literal("§6[Item Counter] §aSet price for §e" + item + " §ato: §b§l" + config.currencySymbol + cost));
         return 1;
     }
 
@@ -115,7 +174,7 @@ public class ItemCounterCommand {
         if (closest != null) {
             CounterSign c = counters.get(closest);
             c.restart();
-            source.sendFeedback(Component.literal("§6[Item Counter] §aRestarted closest counter at §e(" + closest.toShortString() + ")!"));
+            source.sendFeedback(Component.literal("§6[Item Counter] §aRestarted " + c.getSignCustomName() + " (" + closest.toShortString() + ")!"));
         }
         return 1;
     }
