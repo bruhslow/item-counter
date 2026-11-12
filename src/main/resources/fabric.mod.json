@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "itemcounter",
+  "version": "1.0.0",
+  "name": "Item Counter",
+  "description": "Item Counter mod for Fabric 26.2",
+  "authors": [
+    "Giridharan"
+  ],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/itemcounter/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "me.giridharan.itemcounter.ItemCounterMod"
+    ],
+    "client": [
+      "me.giridharan.itemcounter.client.ItemCounterClientMod"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "minecraft": "*",
+    "fabric-api": "*"
+  }
+}
