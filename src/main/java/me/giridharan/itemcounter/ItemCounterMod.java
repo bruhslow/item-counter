@@ -13,3 +13,4 @@ public class ItemCounterMod implements ModInitializer {
         LOGGER.info("[Item Counter] Mod initialized successfully for Fabric 26.2!");
     }
 }
+

@@ -55,3 +55,4 @@ jar {
     archiveBaseName.set("item-counter")
     archiveVersion.set(mod_version)
 }
+
