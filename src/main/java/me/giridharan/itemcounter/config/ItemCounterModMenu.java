@@ -10,3 +10,4 @@ public class ItemCounterModMenu implements ModMenuApi {
         return ItemCounterConfigScreen::create;
     }
 }
+

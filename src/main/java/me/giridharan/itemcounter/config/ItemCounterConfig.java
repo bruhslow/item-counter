@@ -14,17 +14,22 @@ public class ItemCounterConfig {
 
     private static ItemCounterConfig instance;
 
+    // Countdown / Mode defaults
     public int defaultTimerSeconds = 30; // 10, 30, 60 or custom seconds
     public boolean showHologram = true;
-    public boolean showOnScreenHud = true;
     public boolean strictInFrontOnly = true;
+
+    // Live Watch On-Screen HUD Box
+    public boolean showLiveWatchHud = true;
+    public int liveWatchX = 10;
+    public int liveWatchY = 10;
 
     // Multi-key combination support (e.g. Ctrl + O), starts UNBOUND (NONE)
     public int openGuiKeyCode = -1;
     public short openGuiModifier = 0;
     public boolean openGuiKeyIsMouse = false;
 
-    // Quick reset keybind, starts UNBOUND (NONE)
+    // Quick restart keybind, starts UNBOUND (NONE)
     public int resetCounterKeyCode = -1;
     public short resetCounterModifier = 0;
     public boolean resetCounterKeyIsMouse = false;

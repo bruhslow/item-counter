@@ -2,6 +2,7 @@ package me.giridharan.itemcounter.command;
 
 import com.mojang.brigadier.CommandDispatcher;
 import me.giridharan.itemcounter.config.ItemCounterConfigScreen;
+import me.giridharan.itemcounter.config.ItemCounterHudEditScreen;
 import me.giridharan.itemcounter.counter.CounterManager;
 import me.giridharan.itemcounter.counter.CounterSign;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
@@ -19,6 +20,8 @@ public class ItemCounterCommand {
                 .executes(ctx -> showHelp(ctx.getSource()))
                 .then(ClientCommands.literal("gui").executes(ctx -> openGui()))
                 .then(ClientCommands.literal("menu").executes(ctx -> openGui()))
+                .then(ClientCommands.literal("hud").executes(ctx -> openHudEditor()))
+                .then(ClientCommands.literal("move").executes(ctx -> openHudEditor()))
                 .then(ClientCommands.literal("help").executes(ctx -> showHelp(ctx.getSource())))
                 .then(ClientCommands.literal("list").executes(ctx -> listCounters(ctx.getSource())))
                 .then(ClientCommands.literal("clear").executes(ctx -> clearCounters(ctx.getSource())))
@@ -30,6 +33,8 @@ public class ItemCounterCommand {
                 .executes(ctx -> showHelp(ctx.getSource()))
                 .then(ClientCommands.literal("gui").executes(ctx -> openGui()))
                 .then(ClientCommands.literal("menu").executes(ctx -> openGui()))
+                .then(ClientCommands.literal("hud").executes(ctx -> openHudEditor()))
+                .then(ClientCommands.literal("move").executes(ctx -> openHudEditor()))
                 .then(ClientCommands.literal("help").executes(ctx -> showHelp(ctx.getSource())))
                 .then(ClientCommands.literal("list").executes(ctx -> listCounters(ctx.getSource())))
                 .then(ClientCommands.literal("clear").executes(ctx -> clearCounters(ctx.getSource())))
@@ -45,6 +50,14 @@ public class ItemCounterCommand {
         return 1;
     }
 
+    private static int openHudEditor() {
+        Minecraft client = Minecraft.getInstance();
+        client.execute(() -> {
+            client.gui.setScreen(new ItemCounterHudEditScreen(null));
+        });
+        return 1;
+    }
+
     private static int showHelp(FabricClientCommandSource source) {
         source.sendFeedback(Component.literal("§6§l=== Item Counter Guide (Fabric 26.2) ==="));
         source.sendFeedback(Component.literal("§e1. §fPlace a sign in front of or on your farm's water/ice stream."));
@@ -55,6 +68,7 @@ public class ItemCounterCommand {
         source.sendFeedback(Component.literal("   §7- §bRight-Click Sign: §fRestarts / zeroes current test"));
         source.sendFeedback(Component.literal("   §7- §bShift + Right-Click: §fCycles mode (10s → 30s → 60s → Live)"));
         source.sendFeedback(Component.literal("§eCommands:"));
+        source.sendFeedback(Component.literal("   §7- §b/counter hud §f: Drag & move the on-screen Live Watch HUD box anywhere!"));
         source.sendFeedback(Component.literal("   §7- §b/counter gui §f: Open Settings to set custom keybind (e.g. Ctrl+O) & default time"));
         source.sendFeedback(Component.literal("   §7- §b/counter list §f: Show active counters nearby"));
         source.sendFeedback(Component.literal("   §7- §b/counter reset §f: Restart closest counter"));

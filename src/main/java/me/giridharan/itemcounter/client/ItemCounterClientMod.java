@@ -8,6 +8,7 @@ import me.giridharan.itemcounter.config.ItemCounterConfigScreen;
 import me.giridharan.itemcounter.counter.CounterManager;
 import me.giridharan.itemcounter.counter.CounterSign;
 import me.giridharan.itemcounter.renderer.CounterHologramRenderer;
+import me.giridharan.itemcounter.renderer.ItemCounterHudRenderer;
 import me.shedaniel.clothconfig2.api.ModifierKeyCode;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -35,7 +36,10 @@ public class ItemCounterClientMod implements ClientModInitializer {
         // 2. Register in-world 3D hologram renderer directly above counter signs
         CounterHologramRenderer.register();
 
-        // 3. Register client tick loop for sign tracking, entity detection, and multi-key shortcuts
+        // 3. Register movable Live Watch on-screen HUD box
+        ItemCounterHudRenderer.register();
+
+        // 4. Register client tick loop for sign tracking, entity detection, and multi-key shortcuts
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             CounterManager.onClientTick(client);
 
@@ -76,7 +80,7 @@ public class ItemCounterClientMod implements ClientModInitializer {
             }
         });
 
-        // 4. Register Right-Click on Sign interaction
+        // 5. Register Right-Click on Sign interaction
         UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
             if (level.isClientSide() && hand == InteractionHand.MAIN_HAND) {
                 boolean handled = CounterManager.onRightClickSign(level, hitResult.getBlockPos(), player, player.isShiftKeyDown());
@@ -87,12 +91,12 @@ public class ItemCounterClientMod implements ClientModInitializer {
             return InteractionResult.PASS;
         });
 
-        // 5. Register client commands (/counter and /itemcounter)
+        // 6. Register client commands (/counter and /itemcounter)
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             ItemCounterCommand.register(dispatcher);
         });
 
-        ItemCounterMod.LOGGER.info("[Item Counter] Client initialized! Custom keybinds, strict in-front flow detection, and 3D hologram active for Fabric 26.2.");
+        ItemCounterMod.LOGGER.info("[Item Counter] Client initialized! Live Watch HUD, custom keybinds, strict flow detection, and 3D hologram active for Fabric 26.2.");
     }
 
     private static boolean isKeyPressed(ModifierKeyCode key) {
@@ -110,22 +114,24 @@ public class ItemCounterClientMod implements ClientModInitializer {
         if (counters.isEmpty()) return;
 
         BlockPos playerPos = client.player.blockPosition();
-        BlockPos closest = null;
+        BlockPos closestPos = null;
         double closestDist = Double.MAX_VALUE;
 
         for (BlockPos pos : counters.keySet()) {
             double d = pos.distSqr(playerPos);
             if (d < closestDist) {
                 closestDist = d;
-                closest = pos;
+                closestPos = pos;
             }
         }
 
-        if (closest != null && closestDist <= 32 * 32) {
-            CounterSign c = counters.get(closest);
-            c.restart();
-            client.player.playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, 0.9f, 1.4f);
-            client.player.sendSystemMessage(Component.literal("§6§l[Item Counter] §aRestarted nearest counter test at §e(" + closest.toShortString() + ")!"));
+        if (closestPos != null && closestDist <= 32 * 32) {
+            CounterSign c = counters.get(closestPos);
+            if (c != null) {
+                c.restart();
+                client.player.playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, 0.9f, 1.4f);
+                client.player.sendSystemMessage(Component.literal("§6§l[Item Counter] §aRestarted nearest counter test at §e(" + closestPos.toShortString() + ")!"));
+            }
         }
     }
 }
