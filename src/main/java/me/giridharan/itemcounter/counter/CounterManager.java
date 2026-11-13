@@ -103,6 +103,9 @@ public class CounterManager {
             activeCounters.computeIfAbsent(scPos, p -> {
                 CounterSign counter = new CounterSign(p);
                 counter.setCustomDuration(sc.testDurationSeconds);
+                if (sc.savedRatePerSec > 0) {
+                    counter.setSavedRatePerSec(sc.savedRatePerSec);
+                }
                 return counter;
             });
         }
@@ -242,6 +245,10 @@ public class CounterManager {
                 if (defSec == 60) counter.setMode(CounterSign.Mode.SEC_60);
                 else if (defSec <= 0) counter.setMode(CounterSign.Mode.LIVE);
                 else counter.setCustomDuration(defSec);
+            }
+
+            if (signConfig.savedRatePerSec > 0) {
+                counter.setSavedRatePerSec(signConfig.savedRatePerSec);
             }
 
             return counter;

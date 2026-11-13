@@ -67,6 +67,11 @@ public class CounterSign {
     private double totalMoneyValue = 0.0;
     private boolean justRestarted = true;
 
+    // Remote / Chunk-loaded simulation support
+    private double lastKnownRatePerSec = 0.0;
+    private double simulatedItemBuffer = 0.0;
+    private boolean isSimulatingRemote = false;
+
     // Entity item counts map to properly handle item stacking & merging in streams
     private final Map<Integer, Integer> countedEntityItemCounts = new HashMap<>();
     // Entity previous known position map for high-speed trajectory sweeping
@@ -171,6 +176,8 @@ public class CounterSign {
         this.itemRecords.clear();
         this.itemCounts.clear();
         this.justRestarted = true;
+        this.simulatedItemBuffer = 0.0;
+        this.isSimulatingRemote = false;
     }
 
     public void tick(Level level, Player localPlayer) {
@@ -193,6 +200,62 @@ public class CounterSign {
         // 1. Purge records older than 30 seconds for live sliding rate calculation
         itemRecords.removeIf(record -> (now - record.timeMs()) > 30000L);
 
+        ItemCounterConfig config = ItemCounterConfig.getInstance();
+        SignConfigData signConfig = config.getOrCreateSignConfig(pos.getX(), pos.getY(), pos.getZ());
+
+        boolean isChunkLoaded = level.isLoaded(pos);
+        double distSq = (localPlayer != null)
+                ? localPlayer.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5)
+                : Double.MAX_VALUE;
+        // On multiplayer servers, item entities are only tracked/sent to clients within ~32-48 blocks
+        boolean isPlayerNearby = isChunkLoaded && (distSq <= 40.0 * 40.0);
+
+        if (!isPlayerNearby) {
+            // Player is away from the farm (remote chunk-loaded farm simulation)
+            if (signConfig.remoteSimulation && !isFinished) {
+                if (lastKnownRatePerSec <= 0 && signConfig.savedRatePerSec > 0) {
+                    lastKnownRatePerSec = signConfig.savedRatePerSec;
+                }
+                if (lastKnownRatePerSec > 0) {
+                    this.isSimulatingRemote = true;
+                    simulatedItemBuffer += (lastKnownRatePerSec / 20.0);
+                    if (simulatedItemBuffer >= 1.0) {
+                        int itemsToAdd = (int) simulatedItemBuffer;
+                        simulatedItemBuffer -= itemsToAdd;
+
+                        double unitPrice = signConfig.useSignCustomPrice
+                                ? Math.max(0.0, signConfig.pricePerItem)
+                                : config.defaultItemPrice;
+                        double money = itemsToAdd * unitPrice;
+
+                        totalItemsCounted += itemsToAdd;
+                        totalMoneyValue += money;
+
+                        // Maintain sliding window records so rate display remains active
+                        itemRecords.add(new CountRecord(now, itemsToAdd, money));
+                    }
+                } else {
+                    this.isSimulatingRemote = false;
+                }
+            } else {
+                this.isSimulatingRemote = false;
+            }
+
+            // Check timer expiration for timed modes while away
+            int targetSeconds = getTargetDurationSeconds();
+            if (targetSeconds > 0) {
+                int maxTicks = targetSeconds * 20;
+                if (elapsedTicks >= maxTicks) {
+                    finishTimer(localPlayer);
+                }
+            }
+            return;
+        }
+
+        // When player is nearby, real in-world 3D entity tracking takes over
+        this.isSimulatingRemote = false;
+        this.simulatedItemBuffer = 0.0;
+
         // 2. Stream Detection Box:
         // Designed to detect strictly in front of the sign board:
         // - Standing sign placed on top of border block facing the stream (Image 1):
@@ -208,7 +271,6 @@ public class CounterSign {
         Direction.Axis facingAxis = targetDir.getAxis();
         Direction.Axis perpAxis = (facingAxis == Direction.Axis.X) ? Direction.Axis.Z : Direction.Axis.X;
 
-        ItemCounterConfig config = ItemCounterConfig.getInstance();
         boolean strict = config.strictInFrontOnly;
         AABB box;
         if (strict) {
@@ -246,7 +308,6 @@ public class CounterSign {
             box = new AABB(pos).inflate(4.5, 3.0, 4.5);
         }
 
-        SignConfigData signConfig = config.getOrCreateSignConfig(pos.getX(), pos.getY(), pos.getZ());
         String itemFilter = signConfig.itemFilter != null ? signConfig.itemFilter.trim().toLowerCase() : "";
 
         // Query entities within the stream box using dual lookup (spatial index + client rendering iterator)
@@ -372,6 +433,13 @@ public class CounterSign {
 
         justRestarted = false;
 
+        // Calibrate live flow rate for remote chunk-loaded simulation
+        double liveRate = getRatePerSecond();
+        if (liveRate > 0) {
+            this.lastKnownRatePerSec = liveRate;
+            signConfig.savedRatePerSec = liveRate;
+        }
+
         // Periodically purge despawned or collected entities from memory
         if (countedEntityItemCounts.size() > 500) {
             countedEntityItemCounts.keySet().removeIf(id -> level.getEntity(id) == null);
@@ -487,6 +555,20 @@ public class CounterSign {
 
     public boolean isFinished() {
         return isFinished;
+    }
+
+    public void setSavedRatePerSec(double rate) {
+        if (rate > 0) {
+            this.lastKnownRatePerSec = rate;
+        }
+    }
+
+    public double getLastKnownRatePerSec() {
+        return lastKnownRatePerSec;
+    }
+
+    public boolean isRemoteSimulating() {
+        return isSimulatingRemote;
     }
 
     // ==========================================

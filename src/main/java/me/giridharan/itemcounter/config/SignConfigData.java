@@ -43,6 +43,10 @@ public class SignConfigData {
     public String itemFilter = ""; // Comma-separated item names e.g. "iron_ingot, poppy"
     public int testDurationSeconds = 0; // 0 = Live Rate (Default), 10, 30, 60, etc.
 
+    // 6. Remote / Chunk-Loaded Farm Tracking
+    public boolean remoteSimulation = true; // Auto-update Live HUD anywhere in world when farm is chunkloaded
+    public double savedRatePerSec = 0.0; // Calibrated flow rate (items/sec)
+
     // Backwards-compatibility field for older configs
     public double customHologramHeight = -1.0;
 
@@ -79,6 +83,8 @@ public class SignConfigData {
 
         this.itemFilter = "";
         this.testDurationSeconds = 0;
+        this.remoteSimulation = true;
+        this.savedRatePerSec = 0.0;
         this.customHologramHeight = -1.0;
     }
 

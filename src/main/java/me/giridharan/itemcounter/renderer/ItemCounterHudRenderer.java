@@ -64,7 +64,7 @@ public class ItemCounterHudRenderer {
         BlockPos playerPos = client.player.blockPosition();
         Map<BlockPos, CounterSign> counters = CounterManager.getActiveCounters();
 
-        // Collect all active counters that have showInHud == true within 192 blocks
+        // Collect all active counters that have showInHud == true anywhere in the world
         List<CounterSign> enabledSigns = new ArrayList<>();
 
         // 1. Check all in-world active counter signs
@@ -80,11 +80,9 @@ public class ItemCounterHudRenderer {
                 }
             }
 
-            if (pos.distSqr(playerPos) <= 192 * 192) {
-                SignConfigData sc = config.getOrCreateSignConfig(pos.getX(), pos.getY(), pos.getZ());
-                if (sc.showInHud) {
-                    enabledSigns.add(sign);
-                }
+            SignConfigData sc = config.getOrCreateSignConfig(pos.getX(), pos.getY(), pos.getZ());
+            if (sc.showInHud) {
+                enabledSigns.add(sign);
             }
         }
 
@@ -103,14 +101,13 @@ public class ItemCounterHudRenderer {
                 }
             }
 
-            if (pos.distSqr(playerPos) <= 192 * 192) {
-                CounterSign sign = counters.computeIfAbsent(pos, p -> {
-                    CounterSign cs = new CounterSign(p);
-                    cs.setCustomDuration(sc.testDurationSeconds);
-                    return cs;
-                });
-                enabledSigns.add(sign);
-            }
+            CounterSign sign = counters.computeIfAbsent(pos, p -> {
+                CounterSign cs = new CounterSign(p);
+                cs.setCustomDuration(sc.testDurationSeconds);
+                if (sc.savedRatePerSec > 0) cs.setSavedRatePerSec(sc.savedRatePerSec);
+                return cs;
+            });
+            enabledSigns.add(sign);
         }
 
         if (enabledSigns.isEmpty()) {
@@ -197,7 +194,11 @@ public class ItemCounterHudRenderer {
             if (showFooter) {
                 String timerStr;
                 if (sign.getTargetDurationSeconds() <= 0) {
-                    timerStr = "§7Continuous Flow Monitor";
+                    if (sign.isRemoteSimulating()) {
+                        timerStr = "§b● Chunk-Loaded Stream";
+                    } else {
+                        timerStr = "§7Continuous Flow Monitor";
+                    }
                 } else if (sign.isFinished()) {
                     timerStr = "§6★ Test Finished";
                 } else {

@@ -127,6 +127,15 @@ public class ItemCounterConfigScreen {
                         .setTooltip(Component.literal("Comma-separated item IDs to count at this sign (e.g. twisting_vines, iron_ingot). Leave blank for ALL items."))
                         .build());
 
+                generalSub.add(entryBuilder.startDoubleField(
+                                Component.literal("Calibrated Flow Rate (items/sec)"),
+                                data.savedRatePerSec
+                        )
+                        .setDefaultValue(0.0)
+                        .setSaveConsumer(val -> data.savedRatePerSec = Math.max(0.0, val))
+                        .setTooltip(Component.literal("Automatically calibrated when standing near the farm stream. You can also manually set it (e.g. 20.0 = 1,200 items/min) for remote chunk-loaded simulation."))
+                        .build());
+
                 signsCat.addEntry(generalSub.build());
 
                 // --- 2. Outer GUI (Sidebar HUD) Settings (Default Minimized) ---
@@ -215,6 +224,15 @@ public class ItemCounterConfigScreen {
                         .setDefaultValue(true)
                         .setSaveConsumer(val -> data.showHudFooter = val)
                         .setTooltip(Component.literal("YES = Show 'Continuous Flow Monitor' or countdown timer status at the bottom of the card."))
+                        .build());
+
+                hudSub.add(entryBuilder.startBooleanToggle(
+                                Component.literal("Track Anywhere in World (Chunk-Loaded Farm)"),
+                                data.remoteSimulation
+                        )
+                        .setDefaultValue(true)
+                        .setSaveConsumer(val -> data.remoteSimulation = val)
+                        .setTooltip(Component.literal("YES = The Live Watch HUD continuously updates your farm's count and money anywhere in the world using calibrated flow rate when the farm is kept loaded!"))
                         .build());
 
                 signsCat.addEntry(hudSub.build());
