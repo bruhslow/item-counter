@@ -6,6 +6,9 @@ public class SignConfigData {
     public int y;
     public int z;
 
+    // 0. Server / World Scope (isolates signs per server or singleplayer world)
+    public String serverId = "";
+
     // 1. Rename & Identity
     public String customName = "";
 

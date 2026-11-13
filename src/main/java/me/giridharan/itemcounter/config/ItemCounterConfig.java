@@ -105,31 +105,110 @@ public class ItemCounterConfig {
         itemPrices.put(clean, price);
     }
 
-    public SignConfigData getOrCreateSignConfig(int x, int y, int z) {
-        String key = x + "," + y + "," + z;
-        SignConfigData data = signConfigs.get(key);
-        if (data == null) {
-            data = new SignConfigData(x, y, z, "Sign (" + x + ", " + y + ", " + z + ")");
-            signConfigs.put(key, data);
-            save();
+    public static String getCurrentServerOrWorldId() {
+        net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
+        if (client == null) return "global";
+        if (client.getCurrentServer() != null && client.getCurrentServer().ip != null && !client.getCurrentServer().ip.isBlank()) {
+            return client.getCurrentServer().ip.toLowerCase().trim();
         }
+        if (client.getSingleplayerServer() != null) {
+            try {
+                String levelName = client.getSingleplayerServer().getWorldData().getLevelName();
+                if (levelName != null && !levelName.isBlank()) {
+                    return "sp:" + levelName.trim();
+                }
+            } catch (Throwable ignored) {}
+            return "sp:singleplayer";
+        }
+        return "global";
+    }
+
+    public static String makeSignKey(String serverId, int x, int y, int z) {
+        String s = (serverId != null && !serverId.isBlank()) ? serverId.trim() : "global";
+        return s + "@" + x + "," + y + "," + z;
+    }
+
+    public SignConfigData getOrCreateSignConfig(int x, int y, int z) {
+        String currentWorld = getCurrentServerOrWorldId();
+        String scopedKey = makeSignKey(currentWorld, x, y, z);
+        SignConfigData data = signConfigs.get(scopedKey);
+        if (data != null) {
+            if (data.serverId == null || data.serverId.isBlank()) {
+                data.serverId = currentWorld;
+            }
+            return data;
+        }
+
+        // Check if there is an un-scoped legacy key "x,y,z"
+        String legacyKey = x + "," + y + "," + z;
+        SignConfigData legacy = signConfigs.get(legacyKey);
+        if (legacy != null) {
+            if (legacy.serverId == null || legacy.serverId.isBlank() || legacy.serverId.equalsIgnoreCase(currentWorld)) {
+                legacy.serverId = currentWorld;
+                signConfigs.remove(legacyKey);
+                signConfigs.put(scopedKey, legacy);
+                save();
+                return legacy;
+            }
+        }
+
+        data = new SignConfigData(x, y, z, "Sign (" + x + ", " + y + ", " + z + ")");
+        data.serverId = currentWorld;
+        signConfigs.put(scopedKey, data);
+        save();
         return data;
     }
 
     public SignConfigData getSignConfig(int x, int y, int z) {
-        return signConfigs.get(x + "," + y + "," + z);
+        String currentWorld = getCurrentServerOrWorldId();
+        String scopedKey = makeSignKey(currentWorld, x, y, z);
+        SignConfigData data = signConfigs.get(scopedKey);
+        if (data != null) return data;
+
+        String legacyKey = x + "," + y + "," + z;
+        SignConfigData legacy = signConfigs.get(legacyKey);
+        if (legacy != null && (legacy.serverId == null || legacy.serverId.isBlank() || legacy.serverId.equalsIgnoreCase(currentWorld))) {
+            return legacy;
+        }
+        return null;
     }
 
     public void addCustomSign(int x, int y, int z, String customName) {
-        String key = x + "," + y + "," + z;
+        String currentWorld = getCurrentServerOrWorldId();
+        String key = makeSignKey(currentWorld, x, y, z);
         SignConfigData data = new SignConfigData(x, y, z, customName != null && !customName.isBlank() ? customName : "Sign (" + x + ", " + y + ", " + z + ")");
+        data.serverId = currentWorld;
         signConfigs.put(key, data);
         save();
     }
 
     public void removeSignConfig(int x, int y, int z) {
+        String currentWorld = getCurrentServerOrWorldId();
+        signConfigs.remove(makeSignKey(currentWorld, x, y, z));
         signConfigs.remove(x + "," + y + "," + z);
         save();
+    }
+
+    public Map<String, SignConfigData> getSignsForCurrentServer() {
+        String currentWorld = getCurrentServerOrWorldId();
+        Map<String, SignConfigData> result = new LinkedHashMap<>();
+        if (signConfigs == null) return result;
+
+        for (Map.Entry<String, SignConfigData> entry : signConfigs.entrySet()) {
+            SignConfigData sc = entry.getValue();
+            if (sc == null) continue;
+            if (sc.serverId != null && !sc.serverId.isBlank()) {
+                if (sc.serverId.equalsIgnoreCase(currentWorld)) {
+                    result.put(entry.getKey(), sc);
+                }
+            } else {
+                // If legacy entry has no serverId, only show in global or if matching prefix
+                if (currentWorld.equalsIgnoreCase("global") || entry.getKey().startsWith(currentWorld + "@")) {
+                    result.put(entry.getKey(), sc);
+                }
+            }
+        }
+        return result;
     }
 
     public ModifierKeyCode getOpenGuiKey() {

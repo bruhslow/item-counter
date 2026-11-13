@@ -11,6 +11,8 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 
+import java.util.Map;
+
 public class ItemCounterConfigScreen {
 
     public static Screen create(Screen parent) {
@@ -64,12 +66,15 @@ public class ItemCounterConfigScreen {
                 Component.literal("§6✦ Select any sign board below to tweak all settings for that farm in one place: rename it, set its duration, price per item, 3D hologram (height/scale/money), outer GUI feed, and item filter!")
         ).build());
 
-        if (config.signConfigs.isEmpty()) {
+        Map<String, SignConfigData> currentSigns = config.getSignsForCurrentServer();
+        String currentWorldName = ItemCounterConfig.getCurrentServerOrWorldId();
+
+        if (currentSigns.isEmpty()) {
             signsCat.addEntry(entryBuilder.startTextDescription(
-                    Component.literal("§7No sign boards registered yet. Place a sign with 'counter' in-world or add one by coordinates below!")
+                    Component.literal("§7No sign boards registered on §e" + currentWorldName + "§7 yet.\n§7Place a sign with 'counter' in-world or add one by coordinates below!")
             ).build());
         } else {
-            for (SignConfigData data : config.signConfigs.values()) {
+            for (SignConfigData data : currentSigns.values()) {
                 String locTag = config.showCoordinatesInChat ? (" §7(" + data.x + ", " + data.y + ", " + data.z + ")") : "";
                 signsCat.addEntry(entryBuilder.startTextDescription(
                         Component.literal("§6§l✦ Sign Board: §e§l" + data.getDisplayName() + locTag)

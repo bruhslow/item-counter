@@ -104,6 +104,14 @@ public class ItemCounterClientMod implements ClientModInitializer {
             ItemCounterCommand.register(dispatcher);
         });
 
+        // 7. Clear active counters when disconnecting or switching servers
+        net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            CounterManager.clearAll();
+        });
+        net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            CounterManager.clearAll();
+        });
+
         ItemCounterMod.LOGGER.info("[Item Counter] Client initialized! Live Watch HUD, custom keybinds, strict flow detection, and 3D hologram active for Fabric 26.2.");
     }
 

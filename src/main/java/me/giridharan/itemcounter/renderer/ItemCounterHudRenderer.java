@@ -72,10 +72,10 @@ public class ItemCounterHudRenderer {
             }
         }
 
-        // 2. Also ensure any pre-configured signs from config are checked
-        if (config.signConfigs != null) {
-            for (SignConfigData sc : config.signConfigs.values()) {
-                if (!sc.showInHud) continue;
+        // 2. Also ensure any pre-configured signs for THIS SERVER are checked
+        Map<String, SignConfigData> serverSigns = config.getSignsForCurrentServer();
+        for (SignConfigData sc : serverSigns.values()) {
+            if (!sc.showInHud) continue;
                 BlockPos pos = new BlockPos(sc.x, sc.y, sc.z);
                 if (counters.containsKey(pos)) continue; // Already handled above
 
@@ -96,7 +96,6 @@ public class ItemCounterHudRenderer {
                     enabledSigns.add(sign);
                 }
             }
-        }
 
         if (enabledSigns.isEmpty()) {
             return;

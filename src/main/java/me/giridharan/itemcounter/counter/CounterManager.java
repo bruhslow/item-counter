@@ -24,9 +24,15 @@ public class CounterManager {
 
     private static final Map<BlockPos, CounterSign> activeCounters = new ConcurrentHashMap<>();
     private static int scanCooldown = 0;
+    private static String currentSessionWorldId = null;
 
     public static Map<BlockPos, CounterSign> getActiveCounters() {
         return activeCounters;
+    }
+
+    public static void clearAll() {
+        activeCounters.clear();
+        currentSessionWorldId = null;
     }
 
     public static boolean onRightClickSign(Level level, BlockPos pos, Player player, boolean isCrouching) {
@@ -72,23 +78,33 @@ public class CounterManager {
 
     public static void onClientTick(Minecraft client) {
         if (client.player == null || client.level == null) {
+            if (currentSessionWorldId != null) {
+                activeCounters.clear();
+                currentSessionWorldId = null;
+            }
             return;
+        }
+
+        // 0. Detect world / server session switch and clear stale memory from other servers
+        String activeWorldId = ItemCounterConfig.getCurrentServerOrWorldId();
+        if (currentSessionWorldId == null || !currentSessionWorldId.equalsIgnoreCase(activeWorldId)) {
+            activeCounters.clear();
+            currentSessionWorldId = activeWorldId;
         }
 
         Level level = client.level;
         Player player = client.player;
 
-        // 0. Ensure all configured signs are pre-populated in activeCounters so HUD/holograms never miss them
+        // 1. Ensure all configured signs FOR THIS SERVER are pre-populated in activeCounters so HUD/holograms never miss them
         ItemCounterConfig config = ItemCounterConfig.getInstance();
-        if (config.signConfigs != null) {
-            for (SignConfigData sc : config.signConfigs.values()) {
-                BlockPos scPos = new BlockPos(sc.x, sc.y, sc.z);
-                activeCounters.computeIfAbsent(scPos, p -> {
-                    CounterSign counter = new CounterSign(p);
-                    counter.setCustomDuration(sc.testDurationSeconds);
-                    return counter;
-                });
-            }
+        Map<String, SignConfigData> serverSigns = config.getSignsForCurrentServer();
+        for (SignConfigData sc : serverSigns.values()) {
+            BlockPos scPos = new BlockPos(sc.x, sc.y, sc.z);
+            activeCounters.computeIfAbsent(scPos, p -> {
+                CounterSign counter = new CounterSign(p);
+                counter.setCustomDuration(sc.testDurationSeconds);
+                return counter;
+            });
         }
 
         // 1. Tick all active counters and validate they still exist and still have "counter" written on them
@@ -285,9 +301,5 @@ public class CounterManager {
             }
         }
         return null;
-    }
-
-    public static void clearAll() {
-        activeCounters.clear();
     }
 }
