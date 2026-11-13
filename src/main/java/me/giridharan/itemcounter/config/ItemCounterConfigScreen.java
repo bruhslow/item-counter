@@ -27,8 +27,174 @@ public class ItemCounterConfigScreen {
 
         ConfigEntryBuilder entryBuilder = builder.entryBuilder();
 
-        // ==================== Category 1: General & Keys ====================
-        ConfigCategory general = builder.getOrCreateCategory(Component.literal("General"));
+        // ==================== Category 1: Sign Boards & Farms ====================
+        ConfigCategory signsCat = builder.getOrCreateCategory(Component.literal("Sign Boards & Farms"));
+
+        signsCat.addEntry(entryBuilder.startTextDescription(
+                Component.literal("§6✦ Select any sign board below to tweak all of its settings in one place: rename it, set its custom price, configure its 3D hologram (height/scale/money), and choose if its live view feed shows on the outer GUI!")
+        ).build());
+
+        if (config.signConfigs.isEmpty()) {
+            signsCat.addEntry(entryBuilder.startTextDescription(
+                    Component.literal("§7No sign boards registered yet. Place a sign with 'counter' in-world or add one by coordinates below!")
+            ).build());
+        } else {
+            for (SignConfigData data : config.signConfigs.values()) {
+                String locTag = config.showCoordinatesInChat ? (" §7(" + data.x + ", " + data.y + ", " + data.z + ")") : "";
+                SubCategoryBuilder signSub = entryBuilder.startSubCategory(
+                        Component.literal("§6✦ " + data.getDisplayName() + locTag)
+                );
+
+                // 1. Rename
+                signSub.add(entryBuilder.startStrField(
+                                Component.literal("Sign Board Name"),
+                                data.customName
+                        )
+                        .setDefaultValue(data.getDisplayName(true))
+                        .setSaveConsumer(val -> data.customName = (val != null ? val.trim() : ""))
+                        .setTooltip(Component.literal("Rename this sign board (e.g. Iron Farm, Gold Pipeline, Mob Drop A)."))
+                        .build());
+
+                // 2. Pricing System per Sign Board
+                signSub.add(entryBuilder.startBooleanToggle(
+                                Component.literal("Enable Sign Custom Price"),
+                                data.useSignCustomPrice
+                        )
+                        .setDefaultValue(true)
+                        .setSaveConsumer(val -> data.useSignCustomPrice = val)
+                        .setTooltip(Component.literal("YES = Use the custom price below for all items passing this sign. NO = Fallback to global item prices."))
+                        .build());
+
+                signSub.add(entryBuilder.startDoubleField(
+                                Component.literal("Price Per Item / Entity (" + config.currencySymbol + ")"),
+                                data.pricePerItem
+                        )
+                        .setDefaultValue(10.0)
+                        .setMin(0.0)
+                        .setMax(1000000.0)
+                        .setSaveConsumer(val -> data.pricePerItem = Math.max(0.0, val))
+                        .setTooltip(Component.literal("Dollar/economy value earned for each item or entity counted at this specific sign board."))
+                        .build());
+
+                // 3. Live View Feed / Outer GUI (Sidebar HUD)
+                signSub.add(entryBuilder.startBooleanToggle(
+                                Component.literal("Show on Outer GUI (Sidebar HUD)"),
+                                data.showInHud
+                        )
+                        .setDefaultValue(true)
+                        .setSaveConsumer(val -> data.showInHud = val)
+                        .setTooltip(Component.literal("YES = Display this sign board's live view feed on the outer GUI sidebar. NO = Hide from outer GUI."))
+                        .build());
+
+                signSub.add(entryBuilder.startBooleanToggle(
+                                Component.literal("Show Money in Outer GUI Card"),
+                                data.showMoneyInHud
+                        )
+                        .setDefaultValue(true)
+                        .setSaveConsumer(val -> data.showMoneyInHud = val)
+                        .setTooltip(Component.literal("YES = Display calculated total earnings and per-minute rate on the outer GUI. NO = Count and speed only."))
+                        .build());
+
+                // 4. 3D In-World Hologram Setup
+                signSub.add(entryBuilder.startBooleanToggle(
+                                Component.literal("Enable 3D Hologram for this Sign"),
+                                data.showHologram
+                        )
+                        .setDefaultValue(true)
+                        .setSaveConsumer(val -> data.showHologram = val)
+                        .setTooltip(Component.literal("YES = Project floating 3D text in-world directly above this sign board. NO = Disable hologram."))
+                        .build());
+
+                signSub.add(entryBuilder.startDoubleField(
+                                Component.literal("Hologram Vertical Height (Blocks)"),
+                                data.hologramHeight
+                        )
+                        .setDefaultValue(1.25)
+                        .setMin(0.0)
+                        .setMax(10.0)
+                        .setSaveConsumer(val -> data.hologramHeight = Math.max(0.0, val))
+                        .setTooltip(Component.literal("Vertical distance of the floating hologram above this sign board (e.g. 1.25 just above, 2.5 higher up)."))
+                        .build());
+
+                signSub.add(entryBuilder.startDoubleField(
+                                Component.literal("Hologram Text Size / Scale"),
+                                data.hologramScale
+                        )
+                        .setDefaultValue(1.0)
+                        .setMin(0.4)
+                        .setMax(3.0)
+                        .setSaveConsumer(val -> data.hologramScale = Math.max(0.4, Math.min(3.0, val)))
+                        .setTooltip(Component.literal("Text scaling factor for this sign's hologram (e.g. 0.8x smaller, 1.0x normal, 1.5x larger)."))
+                        .build());
+
+                signSub.add(entryBuilder.startBooleanToggle(
+                                Component.literal("Show Money in Hologram"),
+                                data.showMoneyInHologram
+                        )
+                        .setDefaultValue(true)
+                        .setSaveConsumer(val -> data.showMoneyInHologram = val)
+                        .setTooltip(Component.literal("YES = Show item count AND calculated money generated. NO = Show ONLY items count & flow rate."))
+                        .build());
+
+                // 5. Item Filter & Timer
+                signSub.add(entryBuilder.startStrField(
+                                Component.literal("Filter Items (e.g. iron_ingot)"),
+                                data.itemFilter
+                        )
+                        .setDefaultValue("")
+                        .setSaveConsumer(val -> data.itemFilter = (val != null ? val.trim() : ""))
+                        .setTooltip(Component.literal("Comma-separated item IDs to count at this sign (e.g. iron_ingot, poppy). Leave blank for ALL items."))
+                        .build());
+
+                signSub.add(entryBuilder.startIntField(
+                                Component.literal("Test Duration Seconds (0 = Live)"),
+                                data.testDurationSeconds
+                        )
+                        .setDefaultValue(30)
+                        .setMin(0)
+                        .setMax(3600)
+                        .setSaveConsumer(val -> data.testDurationSeconds = Math.max(0, val))
+                        .setTooltip(Component.literal("Default test duration for this sign (e.g. 10, 30, 60s, or 0 for continuous live feed)."))
+                        .build());
+
+                // 6. Coordinates Display
+                signSub.add(entryBuilder.startTextDescription(
+                        Component.literal(config.showCoordinatesInChat ? ("§7World Position: §eX=" + data.x + ", Y=" + data.y + ", Z=" + data.z) : "§8[Location Coordinates Hidden for Privacy]")
+                ).build());
+
+                signsCat.addEntry(signSub.build());
+            }
+        }
+
+        // Add Sign Board by Coordinates section
+        SubCategoryBuilder addSub = entryBuilder.startSubCategory(Component.literal("§a➕ Add Sign Board by Coordinates"));
+        final int[] newCoords = new int[]{0, 64, 0};
+        final String[] newName = new String[]{""};
+
+        addSub.add(entryBuilder.startIntField(Component.literal("Coordinate X"), 0)
+                .setSaveConsumer(val -> newCoords[0] = val).build());
+        addSub.add(entryBuilder.startIntField(Component.literal("Coordinate Y"), 64)
+                .setSaveConsumer(val -> newCoords[1] = val).build());
+        addSub.add(entryBuilder.startIntField(Component.literal("Coordinate Z"), 0)
+                .setSaveConsumer(val -> newCoords[2] = val).build());
+        addSub.add(entryBuilder.startStrField(Component.literal("Sign Name"), "")
+                .setSaveConsumer(val -> newName[0] = val)
+                .setTooltip(Component.literal("Leave empty to name automatically."))
+                .build());
+
+        addSub.add(entryBuilder.startBooleanToggle(Component.literal("Confirm Add Sign on Save"), false)
+                .setSaveConsumer(confirm -> {
+                    if (confirm) {
+                        config.addCustomSign(newCoords[0], newCoords[1], newCoords[2], newName[0]);
+                    }
+                })
+                .setTooltip(Component.literal("Toggle ON and click Save to add this sign board to your manager."))
+                .build());
+
+        signsCat.addEntry(addSub.build());
+
+        // ==================== Category 2: Global Settings & Privacy ====================
+        ConfigCategory general = builder.getOrCreateCategory(Component.literal("Global & Privacy"));
 
         // Tracking variable for 2-step confirmation when enabling coordinates
         final boolean[] requestedShowCoords = new boolean[]{ config.showCoordinatesInChat };
@@ -69,19 +235,7 @@ public class ItemCounterConfigScreen {
                 .setTooltip(Component.literal("Optional keybind to instantly restart the nearest counter test. Starts Unbound (NONE)."))
                 .build());
 
-        // 4. Default Timer Duration
-        general.addEntry(entryBuilder.startIntField(
-                        Component.literal("Default Test Duration (Seconds)"),
-                        config.defaultTimerSeconds
-                )
-                .setDefaultValue(30)
-                .setMin(5)
-                .setMax(3600)
-                .setSaveConsumer(val -> config.defaultTimerSeconds = Math.max(5, val))
-                .setTooltip(Component.literal("Default countdown timer in seconds for new counters (e.g. 10, 30, 60)."))
-                .build());
-
-        // 5. Strict In-Front Directional Detection
+        // 4. Strict In-Front Directional Detection
         general.addEntry(entryBuilder.startBooleanToggle(
                         Component.literal("Strict In-Front Detection Only"),
                         config.strictInFrontOnly
@@ -91,78 +245,18 @@ public class ItemCounterConfigScreen {
                 .setTooltip(Component.literal("Only counts items moving directly in the 1-block stream facing the sign board."))
                 .build());
 
-        // ==================== Category 2: 3D In-World Hologram ====================
-        ConfigCategory holoCat = builder.getOrCreateCategory(Component.literal("3D Hologram"));
-
-        // 6. Show 3D Hologram
-        holoCat.addEntry(entryBuilder.startBooleanToggle(
-                        Component.literal("Enable 3D In-World Hologram"),
-                        config.showHologram
-                )
-                .setDefaultValue(true)
-                .setSaveConsumer(val -> config.showHologram = val)
-                .setTooltip(Component.literal("Displays live floating 3D text directly above the sign board in the world."))
-                .build());
-
-        // 7. Hologram Display Mode (Items Only vs Items + Money Generated)
-        holoCat.addEntry(entryBuilder.startBooleanToggle(
-                        Component.literal("Show Money Generated in Hologram"),
-                        config.showMoneyInHologram
-                )
-                .setDefaultValue(true)
-                .setSaveConsumer(val -> config.showMoneyInHologram = val)
-                .setTooltip(Component.literal("ON = Show items AND calculated money generated. OFF = Show ONLY items/entities count & speed."))
-                .build());
-
-        // 8. Hologram Vertical Height Offset
-        holoCat.addEntry(entryBuilder.startDoubleField(
-                        Component.literal("Hologram Vertical Height (Blocks)"),
-                        config.hologramHeight
-                )
-                .setDefaultValue(1.25)
-                .setMin(0.0)
-                .setMax(10.0)
-                .setSaveConsumer(val -> config.hologramHeight = Math.max(0.0, val))
-                .setTooltip(Component.literal("Vertical distance above the sign board in blocks (e.g. 1.25 = just above sign, 2.5 = higher up)."))
-                .build());
-
-        // 9. Hologram Text Size / Scale
-        holoCat.addEntry(entryBuilder.startDoubleField(
-                        Component.literal("Hologram Text Size / Scale"),
-                        config.hologramScale
-                )
-                .setDefaultValue(1.0)
-                .setMin(0.4)
-                .setMax(3.0)
-                .setSaveConsumer(val -> config.hologramScale = Math.max(0.4, Math.min(3.0, val)))
-                .setTooltip(Component.literal("Scaling factor for the 3D hologram text (e.g. 0.8x smaller, 1.0x normal, 1.5x larger)."))
-                .build());
-
-        // ==================== Category 3: Live Watch Sidebar HUD ====================
-        ConfigCategory hudCat = builder.getOrCreateCategory(Component.literal("Sidebar HUD"));
-
-        // 10. Live Watch On-Screen HUD Toggle
-        hudCat.addEntry(entryBuilder.startBooleanToggle(
-                        Component.literal("Enable Sidebar HUD"),
+        // 5. Global Enable Sidebar HUD
+        general.addEntry(entryBuilder.startBooleanToggle(
+                        Component.literal("Enable Live Watch Sidebar HUD"),
                         config.showLiveWatchHud
                 )
                 .setDefaultValue(true)
                 .setSaveConsumer(val -> config.showLiveWatchHud = val)
-                .setTooltip(Component.literal("Displays a movable live on-screen sidebar box showing count, speed, and time."))
+                .setTooltip(Component.literal("Master switch for displaying the movable live watch sidebar box on screen."))
                 .build());
 
-        // 11. Show Money in Sidebar Toggle
-        hudCat.addEntry(entryBuilder.startBooleanToggle(
-                        Component.literal("Show Money / Earnings in Sidebar"),
-                        config.showMoneyInHud
-                )
-                .setDefaultValue(true)
-                .setSaveConsumer(val -> config.showMoneyInHud = val)
-                .setTooltip(Component.literal("Calculates and displays total value and hourly rate alongside item counts."))
-                .build());
-
-        // 12. Currency Symbol
-        hudCat.addEntry(entryBuilder.startStrField(
+        // 6. Currency Symbol
+        general.addEntry(entryBuilder.startStrField(
                         Component.literal("Currency Symbol"),
                         config.currencySymbol
                 )
@@ -171,41 +265,20 @@ public class ItemCounterConfigScreen {
                 .setTooltip(Component.literal("Currency prefix to display (e.g. $, €, £, Coins)."))
                 .build());
 
-        // 13. Interactive Drag-and-Drop Explanation
-        hudCat.addEntry(entryBuilder.startTextDescription(
-                Component.literal("§e💡 Move Anywhere: §fType §b/counter hud §for §b/counter move §fin chat to click and drag the sidebar anywhere with your mouse!")
+        // 7. Interactive Drag-and-Drop Explanation
+        general.addEntry(entryBuilder.startTextDescription(
+                Component.literal("§e💡 Move Sidebar: §fType §b/itemcounter hud §fin chat to click and drag the sidebar anywhere with your mouse!")
         ).build());
 
-        // 14. Manual Coordinates
-        hudCat.addEntry(entryBuilder.startIntField(
-                        Component.literal("Sidebar X Position (Pixels)"),
-                        config.liveWatchX
-                )
-                .setDefaultValue(10)
-                .setMin(0)
-                .setMax(4000)
-                .setSaveConsumer(val -> config.liveWatchX = val)
-                .build());
-
-        hudCat.addEntry(entryBuilder.startIntField(
-                        Component.literal("Sidebar Y Position (Pixels)"),
-                        config.liveWatchY
-                )
-                .setDefaultValue(10)
-                .setMin(0)
-                .setMax(4000)
-                .setSaveConsumer(val -> config.liveWatchY = val)
-                .build());
-
-        // ==================== Category 4: Item & Entity Prices ====================
-        ConfigCategory priceCat = builder.getOrCreateCategory(Component.literal("Item Prices"));
+        // ==================== Category 3: Fallback Item Prices ====================
+        ConfigCategory priceCat = builder.getOrCreateCategory(Component.literal("Global Item Prices"));
 
         priceCat.addEntry(entryBuilder.startTextDescription(
-                Component.literal("§eSet price per item/entity. The mod calculates total value and per-minute earnings in the hologram & sidebar!")
+                Component.literal("§eGlobal fallback prices per item. Signs will use these if 'Enable Sign Custom Price' is turned OFF on that sign board.")
         ).build());
 
         priceCat.addEntry(entryBuilder.startDoubleField(
-                        Component.literal("Default Price (Fallback)"),
+                        Component.literal("Default Item Price (Fallback)"),
                         config.defaultItemPrice
                 )
                 .setDefaultValue(1.0)
@@ -231,97 +304,6 @@ public class ItemCounterConfigScreen {
         addPriceField(priceCat, entryBuilder, config, "Bone", "bone", 2.0);
         addPriceField(priceCat, entryBuilder, config, "String", "string", 2.0);
         addPriceField(priceCat, entryBuilder, config, "Ender Pearl", "ender_pearl", 15.0);
-
-        // ==================== Category 5: Sign Boards & Farms ====================
-        ConfigCategory signsCat = builder.getOrCreateCategory(Component.literal("Sign Boards & Farms"));
-
-        signsCat.addEntry(entryBuilder.startTextDescription(
-                Component.literal("§e✦ All signs placed in your world with 'counter' are listed here. You can rename them, choose if they show in the sidebar, set item filters, and adjust custom hologram heights!")
-        ).build());
-
-        if (config.signConfigs.isEmpty()) {
-            signsCat.addEntry(entryBuilder.startTextDescription(
-                    Component.literal("§7No sign boards registered yet. Place a sign with 'counter' in-world or add one below!")
-            ).build());
-        } else {
-            for (SignConfigData data : config.signConfigs.values()) {
-                String locTag = config.showCoordinatesInChat ? (" §7(" + data.x + ", " + data.y + ", " + data.z + ")") : "";
-                SubCategoryBuilder signSub = entryBuilder.startSubCategory(
-                        Component.literal("§6" + data.getDisplayName() + locTag)
-                );
-
-                signSub.add(entryBuilder.startStrField(
-                                Component.literal("Custom Sign Name"),
-                                data.customName
-                        )
-                        .setDefaultValue(data.getDisplayName(true))
-                        .setSaveConsumer(val -> data.customName = val)
-                        .setTooltip(Component.literal("Rename this sign board (e.g. Iron Farm, Gold Line, Pipeline A)"))
-                        .build());
-
-                signSub.add(entryBuilder.startBooleanToggle(
-                                Component.literal("Show in Sidebar HUD"),
-                                data.showInHud
-                        )
-                        .setDefaultValue(true)
-                        .setSaveConsumer(val -> data.showInHud = val)
-                        .setTooltip(Component.literal("Whether this sign board is visible in your on-screen sidebar HUD."))
-                        .build());
-
-                signSub.add(entryBuilder.startStrField(
-                                Component.literal("Filter Items (e.g. iron_ingot)"),
-                                data.itemFilter
-                        )
-                        .setDefaultValue("")
-                        .setSaveConsumer(val -> data.itemFilter = val)
-                        .setTooltip(Component.literal("Comma-separated item names to count/show (e.g. iron_ingot, poppy). Leave blank for ALL items."))
-                        .build());
-
-                signSub.add(entryBuilder.startDoubleField(
-                                Component.literal("Sign Hologram Height (-1 = Global)"),
-                                data.customHologramHeight
-                        )
-                        .setDefaultValue(-1.0)
-                        .setMin(-1.0)
-                        .setMax(10.0)
-                        .setSaveConsumer(val -> data.customHologramHeight = val)
-                        .setTooltip(Component.literal("Custom vertical height for this specific sign's hologram. Set to -1 to use the global hologram height."))
-                        .build());
-
-                signSub.add(entryBuilder.startTextDescription(
-                        Component.literal(config.showCoordinatesInChat ? ("§7World Position: §eX=" + data.x + ", Y=" + data.y + ", Z=" + data.z) : "§8[Location Coordinates Hidden for Privacy]")
-                ).build());
-
-                signsCat.addEntry(signSub.build());
-            }
-        }
-
-        // Add Sign Board by Coordinates section
-        SubCategoryBuilder addSub = entryBuilder.startSubCategory(Component.literal("§a➕ Add Sign Board by Coordinates"));
-        final int[] newCoords = new int[]{0, 64, 0};
-        final String[] newName = new String[]{""};
-
-        addSub.add(entryBuilder.startIntField(Component.literal("Coordinate X"), 0)
-                .setSaveConsumer(val -> newCoords[0] = val).build());
-        addSub.add(entryBuilder.startIntField(Component.literal("Coordinate Y"), 64)
-                .setSaveConsumer(val -> newCoords[1] = val).build());
-        addSub.add(entryBuilder.startIntField(Component.literal("Coordinate Z"), 0)
-                .setSaveConsumer(val -> newCoords[2] = val).build());
-        addSub.add(entryBuilder.startStrField(Component.literal("Sign Name"), "")
-                .setSaveConsumer(val -> newName[0] = val)
-                .setTooltip(Component.literal("Leave empty to name automatically."))
-                .build());
-
-        addSub.add(entryBuilder.startBooleanToggle(Component.literal("Confirm Add Sign on Save"), false)
-                .setSaveConsumer(confirm -> {
-                    if (confirm) {
-                        config.addCustomSign(newCoords[0], newCoords[1], newCoords[2], newName[0]);
-                    }
-                })
-                .setTooltip(Component.literal("Toggle ON and click Save to add this sign board to your manager."))
-                .build());
-
-        signsCat.addEntry(addSub.build());
 
         // Saving logic with 2-step confirmation when enabling coordinates
         builder.setSavingRunnable(() -> {

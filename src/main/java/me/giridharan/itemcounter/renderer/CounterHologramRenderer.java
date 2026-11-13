@@ -45,8 +45,12 @@ public class CounterHologramRenderer {
                 BlockPos pos = entry.getKey();
                 CounterSign sign = entry.getValue();
 
-                SignConfigData sc = config.getSignConfig(pos.getX(), pos.getY(), pos.getZ());
-                double heightOffset = (sc != null && sc.customHologramHeight >= 0) ? sc.customHologramHeight : config.hologramHeight;
+                SignConfigData sc = config.getOrCreateSignConfig(pos.getX(), pos.getY(), pos.getZ());
+                if (!sc.showHologram) {
+                    continue; // Hologram disabled for this particular sign board
+                }
+
+                double heightOffset = sc.getEffectiveHeight(config.hologramHeight);
 
                 double baseX = pos.getX() + 0.5;
                 double baseY = pos.getY() + heightOffset;
@@ -57,19 +61,19 @@ public class CounterHologramRenderer {
                     continue; // Skip rendering if further than 36 blocks away
                 }
 
-                renderHologram(collector, poseStack, camera, camPos, baseX, baseY, baseZ, sign, config);
+                renderHologram(collector, poseStack, camera, camPos, baseX, baseY, baseZ, sign, config, sc);
             }
         });
     }
 
-    private static void renderHologram(SubmitNodeCollector collector, PoseStack poseStack, CameraRenderState camera, Vec3 camPos, double baseX, double baseY, double baseZ, CounterSign sign, ItemCounterConfig config) {
+    private static void renderHologram(SubmitNodeCollector collector, PoseStack poseStack, CameraRenderState camera, Vec3 camPos, double baseX, double baseY, double baseZ, CounterSign sign, ItemCounterConfig config, SignConfigData sc) {
         poseStack.pushPose();
 
         // Translate poseStack to sign position + custom vertical height relative to camera origin
         poseStack.translate(baseX - camPos.x, baseY - camPos.y, baseZ - camPos.z);
 
-        // Apply custom hologram text scale
-        float scale = (float) Math.max(0.4, Math.min(3.0, config.hologramScale));
+        // Apply custom hologram text scale for this sign board
+        float scale = (float) Math.max(0.4, Math.min(3.0, sc.getEffectiveScale(config.hologramScale)));
         poseStack.scale(scale, scale, scale);
 
         // Line 1: Header with custom sign name and mode
@@ -83,9 +87,9 @@ public class CounterHologramRenderer {
         double rateMin = sign.getRatePerMinute();
         Component line2 = Component.literal("§fPassed: §e§l" + sign.getTotalItemsCounted() + " items §7(~" + String.format("%.0f", rateMin) + "/m)");
 
-        // Line 3: Value/Money if enabled in hologram, otherwise speed per second
+        // Line 3: Value/Money if enabled for this sign board, otherwise speed per second
         Component line3;
-        if (config.showMoneyInHologram) {
+        if (sc.showMoneyInHologram) {
             double totalMoney = sign.getTotalMoneyValue();
             double moneyRateMin = sign.getMoneyRatePerMinute();
             line3 = Component.literal("§aValue: §e§l" + config.currencySymbol + String.format("%,.0f", totalMoney) + " §7(§a~" + config.currencySymbol + String.format("%,.0f", moneyRateMin) + "/m§7)");

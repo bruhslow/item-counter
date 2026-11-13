@@ -219,7 +219,12 @@ public class CounterSign {
             if (!countedEntityIds.contains(entity.getId())) {
                 countedEntityIds.add(entity.getId());
 
-                double unitPrice = config.getItemPrice(rawId);
+                double unitPrice;
+                if (signConfig.useSignCustomPrice) {
+                    unitPrice = Math.max(0.0, signConfig.pricePerItem);
+                } else {
+                    unitPrice = config.getItemPrice(rawId);
+                }
                 double money = count * unitPrice;
 
                 totalItemsCounted += count;

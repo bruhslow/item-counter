@@ -72,12 +72,15 @@ public class ItemCounterHudRenderer {
 
         int hudX = Math.max(2, Math.min(graphics.guiWidth() - CARD_WIDTH - 2, config.liveWatchX));
         int currentY = Math.max(2, config.liveWatchY);
-        int cardHeight = config.showMoneyInHud ? CARD_HEIGHT_WITH_MONEY : CARD_HEIGHT_NO_MONEY;
 
         Font font = client.font;
 
         // Render a card for each active, enabled sign board in the sidebar
         for (CounterSign sign : enabledSigns) {
+            SignConfigData sc = config.getOrCreateSignConfig(sign.getPos().getX(), sign.getPos().getY(), sign.getPos().getZ());
+            boolean showMoneyThisSign = sc.showMoneyInHud && config.showMoneyInHud;
+            int cardHeight = showMoneyThisSign ? CARD_HEIGHT_WITH_MONEY : CARD_HEIGHT_NO_MONEY;
+
             if (currentY + cardHeight > graphics.guiHeight() - 2) {
                 break; // Don't overflow bottom of screen
             }
@@ -96,7 +99,7 @@ public class ItemCounterHudRenderer {
             graphics.text(font, Component.literal(countStr), hudX + 5, currentY + 15, 0xFFFFFF, true);
 
             int textY = currentY + 25;
-            if (config.showMoneyInHud) {
+            if (showMoneyThisSign) {
                 double totalMoney = sign.getTotalMoneyValue();
                 double moneyRateMin = sign.getMoneyRatePerMinute();
                 String moneyStr = "§aMoney: §e§l" + config.currencySymbol + String.format("%,.0f", totalMoney) + " §7(§a~" + config.currencySymbol + String.format("%,.0f", moneyRateMin) + "/m§7)";
