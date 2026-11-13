@@ -54,6 +54,9 @@ public class ItemCounterConfigScreen {
 
         ConfigEntryBuilder entryBuilder = builder.entryBuilder();
 
+        // Tracking variable for 2-step confirmation when enabling coordinates
+        final boolean[] requestedShowCoords = new boolean[]{ config.showCoordinatesInChat };
+
         // ==================== Category 1: Sign Boards & Farms ====================
         ConfigCategory signsCat = builder.getOrCreateCategory(Component.literal("Sign Boards & Farms"));
 
@@ -71,9 +74,13 @@ public class ItemCounterConfigScreen {
                 SubCategoryBuilder signSub = entryBuilder.startSubCategory(
                         Component.literal("§6✦ " + data.getDisplayName() + locTag)
                 );
+                signSub.setExpanded(true);
 
-                // 1. Rename Sign Board
-                signSub.add(entryBuilder.startStrField(
+                // --- 1. General & Farm Settings ---
+                SubCategoryBuilder generalSub = entryBuilder.startSubCategory(Component.literal("⚙️ General & Farm Settings"));
+                generalSub.setExpanded(true);
+
+                generalSub.add(entryBuilder.startStrField(
                                 Component.literal("Sign Board Name"),
                                 data.customName
                         )
@@ -82,8 +89,7 @@ public class ItemCounterConfigScreen {
                         .setTooltip(Component.literal("Rename this sign board (e.g. Twisting Vine, Iron Farm, Gold Pipeline)."))
                         .build());
 
-                // 2. Test Duration for this specific sign board (0 = Live Continuous Feed default)
-                signSub.add(entryBuilder.startIntField(
+                generalSub.add(entryBuilder.startIntField(
                                 Component.literal("Test Duration Seconds (0 = Live Continuous)"),
                                 data.testDurationSeconds
                         )
@@ -94,8 +100,7 @@ public class ItemCounterConfigScreen {
                         .setTooltip(Component.literal("Test countdown duration for this sign (0 = Live continuous feed, or 10, 30, 60s)."))
                         .build());
 
-                // 3. Pricing System per Sign Board
-                signSub.add(entryBuilder.startDoubleField(
+                generalSub.add(entryBuilder.startDoubleField(
                                 Component.literal("Price Per Item / Entity (" + config.currencySymbol + ")"),
                                 data.pricePerItem
                         )
@@ -109,8 +114,22 @@ public class ItemCounterConfigScreen {
                         .setTooltip(Component.literal("Dollar/economy value earned for each item or entity counted at this specific sign board."))
                         .build());
 
-                // 4. Live View Feed / Outer GUI (Sidebar HUD)
-                signSub.add(entryBuilder.startBooleanToggle(
+                generalSub.add(entryBuilder.startStrField(
+                                Component.literal("Filter Items (e.g. twisting_vines)"),
+                                data.itemFilter
+                        )
+                        .setDefaultValue("")
+                        .setSaveConsumer(val -> data.itemFilter = (val != null ? val.trim() : ""))
+                        .setTooltip(Component.literal("Comma-separated item IDs to count at this sign (e.g. twisting_vines, iron_ingot). Leave blank for ALL items."))
+                        .build());
+
+                signSub.add(generalSub.build());
+
+                // --- 2. Outer GUI (Sidebar HUD) Settings ---
+                SubCategoryBuilder hudSub = entryBuilder.startSubCategory(Component.literal("📺 Outer GUI (Sidebar HUD) Settings"));
+                hudSub.setExpanded(true);
+
+                hudSub.add(entryBuilder.startBooleanToggle(
                                 Component.literal("Show on Outer GUI (Sidebar HUD)"),
                                 data.showInHud
                         )
@@ -119,7 +138,7 @@ public class ItemCounterConfigScreen {
                         .setTooltip(Component.literal("YES = Display this sign board's live view feed on the outer GUI sidebar. NO = Hide from outer GUI."))
                         .build());
 
-                signSub.add(entryBuilder.startBooleanToggle(
+                hudSub.add(entryBuilder.startBooleanToggle(
                                 Component.literal("Show Money in Outer GUI Card"),
                                 data.showMoneyInHud
                         )
@@ -128,8 +147,13 @@ public class ItemCounterConfigScreen {
                         .setTooltip(Component.literal("YES = Display calculated total earnings and per-minute rate on the outer GUI. NO = Count and speed only."))
                         .build());
 
-                // 5. 3D In-World Hologram Setup
-                signSub.add(entryBuilder.startBooleanToggle(
+                signSub.add(hudSub.build());
+
+                // --- 3. 3D In-World Hologram Settings ---
+                SubCategoryBuilder holoSub = entryBuilder.startSubCategory(Component.literal("✨ 3D In-World Hologram Settings"));
+                holoSub.setExpanded(true);
+
+                holoSub.add(entryBuilder.startBooleanToggle(
                                 Component.literal("Enable 3D Hologram for this Sign"),
                                 data.showHologram
                         )
@@ -138,7 +162,7 @@ public class ItemCounterConfigScreen {
                         .setTooltip(Component.literal("YES = Project floating 3D text in-world directly above this sign board. NO = Disable hologram."))
                         .build());
 
-                signSub.add(entryBuilder.startDoubleField(
+                holoSub.add(entryBuilder.startDoubleField(
                                 Component.literal("Hologram Vertical Height (Blocks)"),
                                 data.hologramHeight
                         )
@@ -149,7 +173,7 @@ public class ItemCounterConfigScreen {
                         .setTooltip(Component.literal("Vertical distance of the floating hologram above this sign board (e.g. 1.25 just above, 2.5 higher up)."))
                         .build());
 
-                signSub.add(entryBuilder.startDoubleField(
+                holoSub.add(entryBuilder.startDoubleField(
                                 Component.literal("Hologram Text Size / Scale"),
                                 data.hologramScale
                         )
@@ -160,7 +184,7 @@ public class ItemCounterConfigScreen {
                         .setTooltip(Component.literal("Text scaling factor for this sign's hologram (e.g. 0.8x smaller, 1.0x normal, 1.5x larger)."))
                         .build());
 
-                signSub.add(entryBuilder.startBooleanToggle(
+                holoSub.add(entryBuilder.startBooleanToggle(
                                 Component.literal("Show Money in Hologram"),
                                 data.showMoneyInHologram
                         )
@@ -169,23 +193,34 @@ public class ItemCounterConfigScreen {
                         .setTooltip(Component.literal("YES = Show item count AND calculated money generated. NO = Show ONLY items count & flow rate."))
                         .build());
 
-                // 6. Item Filter
-                signSub.add(entryBuilder.startStrField(
-                                Component.literal("Filter Items (e.g. twisting_vines)"),
-                                data.itemFilter
+                signSub.add(holoSub.build());
+
+                // --- 4. Coordinates & Anti-Leak Privacy ---
+                SubCategoryBuilder coordSub = entryBuilder.startSubCategory(Component.literal("📍 Coordinates & Privacy"));
+                coordSub.setExpanded(true);
+
+                coordSub.add(entryBuilder.startBooleanToggle(
+                                Component.literal("Show Coordinates in Chat & UI"),
+                                config.showCoordinatesInChat
                         )
-                        .setDefaultValue("")
-                        .setSaveConsumer(val -> data.itemFilter = (val != null ? val.trim() : ""))
-                        .setTooltip(Component.literal("Comma-separated item IDs to count at this sign (e.g. twisting_vines, iron_ingot). Leave blank for ALL items."))
+                        .setDefaultValue(false)
+                        .setSaveConsumer(val -> requestedShowCoords[0] = val)
+                        .setTooltip(Component.literal("Toggle ON and click Save to reveal farm coordinates. Requires 2-step confirmation to protect your base."))
                         .build());
 
-                // 7. Coordinates Display
-                signSub.add(entryBuilder.startTextDescription(
-                        Component.literal(config.showCoordinatesInChat ? ("§7World Position: §eX=" + data.x + ", Y=" + data.y + ", Z=" + data.z) : "§8[Location Coordinates Hidden for Privacy]")
+                coordSub.add(entryBuilder.startTextDescription(
+                        Component.literal(config.showCoordinatesInChat
+                                ? ("§a📍 Exact Farm Location: §eX=" + data.x + ", Y=" + data.y + ", Z=" + data.z)
+                                : "§8[📍 Location Coordinates Hidden for Anti-Leak Privacy - Toggle ON above to reveal]")
                 ).build());
 
-                // 8. Delete / Remove Sign Board Option
-                signSub.add(entryBuilder.startBooleanToggle(
+                signSub.add(coordSub.build());
+
+                // --- 5. Danger Zone / Delete Sign ---
+                SubCategoryBuilder manageSub = entryBuilder.startSubCategory(Component.literal("🗑 Delete & Manage"));
+                manageSub.setExpanded(false);
+
+                manageSub.add(entryBuilder.startBooleanToggle(
                                 Component.literal("§c🗑 Remove this Sign Board on Save"),
                                 false
                         )
@@ -197,6 +232,8 @@ public class ItemCounterConfigScreen {
                         })
                         .setTooltip(Component.literal("Toggle YES and click Save to permanently remove this sign board from your settings."))
                         .build());
+
+                signSub.add(manageSub.build());
 
                 signsCat.addEntry(signSub.build());
             }
@@ -231,9 +268,6 @@ public class ItemCounterConfigScreen {
 
         // ==================== Category 2: General & Privacy ====================
         ConfigCategory general = builder.getOrCreateCategory(Component.literal("General & Privacy"));
-
-        // Tracking variable for 2-step confirmation when enabling coordinates
-        final boolean[] requestedShowCoords = new boolean[]{ config.showCoordinatesInChat };
 
         // 1. Coordinates Privacy Toggle (DISABLED BY DEFAULT!)
         general.addEntry(entryBuilder.startBooleanToggle(
