@@ -79,32 +79,42 @@ public class CounterHologramRenderer {
         // Line 1: Header with custom sign name and mode
         String signName = sign.getSignCustomName();
         String modeName = sign.getDisplayName();
-        String headerStatus = sign.isFinished() ? "§a[FINISHED]" : (sign.isRunning() ? "§e[COUNTING]" : "§7[PAUSED]");
+        String headerStatus;
+        if (sign.getTargetDurationSeconds() <= 0) {
+            headerStatus = "§a● [LIVE RATE]";
+        } else if (sign.isFinished()) {
+            headerStatus = "§6★ [FINISHED]";
+        } else {
+            headerStatus = "§e⏳ [COUNTING]";
+        }
         Component line1 = Component.literal("§6§l⚡ " + signName + " §b[" + modeName + "] " + headerStatus);
 
-        // Line 2: Items Counted & Speed
-        double rateSec = sign.getRatePerSecond();
+        // Line 2: Items Counted & Speed (starts at 0, climbs as items pass)
+        int total = sign.getTotalItemsCounted();
         double rateMin = sign.getRatePerMinute();
-        Component line2 = Component.literal("§fPassed: §e§l" + sign.getTotalItemsCounted() + " items §7(~" + String.format("%.0f", rateMin) + "/m)");
+        String rateText = (total == 0) ? "§7(Waiting...)" : ("§7(§b~" + String.format("%.0f", rateMin) + "/m§7)");
+        Component line2 = Component.literal("§fCount: §e§l" + total + " items " + rateText);
 
         // Line 3: Value/Money if enabled for this sign board, otherwise speed per second
         Component line3;
         if (sc.showMoneyInHologram) {
             double totalMoney = sign.getTotalMoneyValue();
             double moneyRateMin = sign.getMoneyRatePerMinute();
-            line3 = Component.literal("§aValue: §e§l" + config.currencySymbol + String.format("%,.0f", totalMoney) + " §7(§a~" + config.currencySymbol + String.format("%,.0f", moneyRateMin) + "/m§7)");
+            String moneyRateText = (total == 0) ? "" : (" §7(§a~" + config.currencySymbol + String.format("%,.0f", moneyRateMin) + "/m§7)");
+            line3 = Component.literal("§aValue: §e§l" + config.currencySymbol + String.format("%,.0f", totalMoney) + moneyRateText);
         } else {
+            double rateSec = sign.getRatePerSecond();
             line3 = Component.literal("§bSpeed: §a§l~" + String.format("%.0f", rateMin) + " §7items/min §8(" + String.format("%.1f", rateSec) + "/s)");
         }
 
         // Line 4: Timer Remaining or Restart prompt
         Component line4;
         if (sign.getTargetDurationSeconds() <= 0) {
-            line4 = Component.literal("§a● Live Rate §7(Right-click: reset)");
+            line4 = Component.literal("§a● Live Rate Feed §8| §7Right-click: reset");
         } else if (sign.isFinished()) {
-            line4 = Component.literal("§6★ Test Done! §7(Right-click: restart)");
+            line4 = Component.literal("§6★ Test Done! §8| §7Right-click: restart");
         } else {
-            line4 = Component.literal("§a⏳ " + sign.getRemainingSeconds() + "s left §7(Shift+R-Click: mode)");
+            line4 = Component.literal("§a⏳ " + sign.getRemainingSeconds() + "s left §8| §7Shift+Click: mode");
         }
 
         // Submitting billboard nametags spaced along Y with seeThrough=true

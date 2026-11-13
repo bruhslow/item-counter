@@ -24,10 +24,10 @@ public class CounterSign {
     public record CountRecord(long timeMs, int count, double money) {}
 
     public enum Mode {
+        LIVE(0, "Live Rate"),
         SEC_10(10, "10s"),
         SEC_30(30, "30s"),
-        SEC_60(60, "60s"),
-        LIVE(0, "Live Rate");
+        SEC_60(60, "60s");
 
         public final int durationSeconds;
         public final String displayName;
@@ -43,13 +43,12 @@ public class CounterSign {
         }
 
         public static Mode fromString(String str) {
-            if (str == null) return SEC_30;
+            if (str == null) return LIVE;
             String lower = str.toLowerCase().trim();
             if (lower.contains("10")) return SEC_10;
             if (lower.contains("60") || lower.contains("1m")) return SEC_60;
-            if (lower.contains("live") || lower.contains("inf") || lower.contains("rate")) return LIVE;
             if (lower.contains("30")) return SEC_30;
-            return SEC_30;
+            return LIVE;
         }
     }
 
@@ -57,7 +56,7 @@ public class CounterSign {
     private Direction frontDirection = Direction.NORTH;
     private boolean isBackSide = false;
 
-    private Mode mode = Mode.SEC_30;
+    private Mode mode = Mode.LIVE;
     private int customDurationSeconds = 0; // If non-zero, overrides mode.durationSeconds
     private boolean isRunning = true;
     private boolean isFinished = false;

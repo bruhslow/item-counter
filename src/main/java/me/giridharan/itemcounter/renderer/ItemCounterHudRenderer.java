@@ -91,9 +91,11 @@ public class ItemCounterHudRenderer {
 
             String signName = sign.getSignCustomName();
             String modeName = sign.getDisplayName();
-            String status = sign.isFinished() ? "§a[DONE]" : (sign.isRunning() ? "§e[LIVE]" : "§7[PAUSED]");
+            String status = sign.isFinished() ? "§a[DONE]" : (sign.getTargetDurationSeconds() <= 0 ? "§a[LIVE]" : "§e[RUNNING]");
             String headerTitle = "§6⚡ " + truncate(signName, 14) + " §b[" + modeName + "] " + status;
-            String countStr = "§fItems: §e§l" + sign.getTotalItemsCounted() + " §7(~" + String.format("%.0f", sign.getRatePerMinute()) + "/m)";
+            int total = sign.getTotalItemsCounted();
+            String rateText = (total == 0) ? "§7(Waiting...)" : ("§7(~" + String.format("%.0f", sign.getRatePerMinute()) + "/m)");
+            String countStr = "§fCount: §e§l" + total + " " + rateText;
 
             graphics.text(font, Component.literal(headerTitle), hudX + 5, currentY + 4, 0xFFFFFF, true);
             graphics.text(font, Component.literal(countStr), hudX + 5, currentY + 15, 0xFFFFFF, true);

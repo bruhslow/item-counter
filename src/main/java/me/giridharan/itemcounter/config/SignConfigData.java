@@ -25,7 +25,7 @@ public class SignConfigData {
 
     // 5. Item Filter & Test Duration
     public String itemFilter = ""; // Comma-separated item names e.g. "iron_ingot, poppy"
-    public int testDurationSeconds = 30; // 0 = Live Continuous, 10, 30, 60, etc.
+    public int testDurationSeconds = 0; // 0 = Live Rate (Default), 10, 30, 60, etc.
 
     // Backwards-compatibility field for older configs
     public double customHologramHeight = -1.0;
@@ -46,7 +46,7 @@ public class SignConfigData {
         this.hologramScale = 1.0;
         this.showMoneyInHologram = true;
         this.itemFilter = "";
-        this.testDurationSeconds = 30;
+        this.testDurationSeconds = 0;
         this.customHologramHeight = -1.0;
     }
 
