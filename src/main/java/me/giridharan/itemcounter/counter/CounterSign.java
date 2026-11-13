@@ -186,25 +186,43 @@ public class CounterSign {
         itemRecords.removeIf(record -> (now - record.timeMs()) > 30000L);
 
         // 2. Stream Detection Box:
-        // Captures items at the sign block (pos), the immediate block in front (frontPos),
-        // and the first block directly below both (pos.below() and frontPos.below()).
-        // Tight boundary prevents bleeding into blocks further away.
+        // Designed to seamlessly detect both:
+        // - Standing sign placed on top of border block facing the stream (Image 1):
+        //   detects items in the ice/water stream 1 block in front and 1-2 blocks below (Y - 1, Y - 2 on blue ice).
+        // - Wall sign placed sideways on the glass wall (Image 2):
+        //   detects items in the ice stream through/beside the glass block.
+        // - High-speed ice movement: spans 4 blocks along the stream channel and uses continuous swept trajectory testing.
         Direction targetDir = getActiveDetectionDirection();
         BlockPos frontPos = pos.relative(targetDir);
+        BlockPos backPos = pos.relative(targetDir.getOpposite());
+
+        Direction.Axis facingAxis = targetDir.getAxis();
+        Direction.Axis perpAxis = (facingAxis == Direction.Axis.X) ? Direction.Axis.Z : Direction.Axis.X;
 
         ItemCounterConfig config = ItemCounterConfig.getInstance();
         boolean strict = config.strictInFrontOnly;
         AABB box;
         if (strict) {
-            double minX = Math.min(pos.getX(), frontPos.getX()) - 0.05;
-            double maxX = Math.max(pos.getX(), frontPos.getX()) + 1.05;
-            double minY = Math.min(pos.getY(), frontPos.getY()) - 1.25; // Accurately captures the first block below (Y - 1)
-            double maxY = Math.max(pos.getY(), frontPos.getY()) + 1.05; // Captures the sign block itself (Y)
-            double minZ = Math.min(pos.getZ(), frontPos.getZ()) - 0.05;
-            double maxZ = Math.max(pos.getZ(), frontPos.getZ()) + 1.05;
+            // Across stream: covers backPos (through glass/wall for Image 2) up to frontPos (stream in front for Image 1)
+            double minFacing = Math.min(backPos.get(facingAxis), frontPos.get(facingAxis)) - 0.15;
+            double maxFacing = Math.max(backPos.get(facingAxis), frontPos.get(facingAxis)) + 1.15;
+
+            // Along the ice stream channel (perpendicular to sign face): spans 4 blocks so fast items on ice are caught
+            double minPerp = pos.get(perpAxis) - 1.5;
+            double maxPerp = pos.get(perpAxis) + 2.5;
+
+            // Vertically (Y): covers pos (sign itself) down to Y - 2.5 (detecting water at Y - 1 and blue ice floor at Y - 2)
+            double minY = pos.getY() - 2.5;
+            double maxY = pos.getY() + 1.15;
+
+            double minX = (facingAxis == Direction.Axis.X) ? minFacing : minPerp;
+            double maxX = (facingAxis == Direction.Axis.X) ? maxFacing : maxPerp;
+            double minZ = (facingAxis == Direction.Axis.Z) ? minFacing : minPerp;
+            double maxZ = (facingAxis == Direction.Axis.Z) ? maxFacing : maxPerp;
+
             box = new AABB(minX, minY, minZ, maxX, maxY, maxZ);
         } else {
-            box = new AABB(pos).inflate(2.0, 1.5, 2.0);
+            box = new AABB(pos).inflate(3.5, 3.0, 3.5);
         }
 
         SignConfigData signConfig = config.getOrCreateSignConfig(pos.getX(), pos.getY(), pos.getZ());
@@ -213,7 +231,8 @@ public class CounterSign {
         // Query entities within the stream box using dual lookup (spatial index + client rendering iterator)
         Set<Entity> candidateEntities = new LinkedHashSet<>();
         try {
-            List<Entity> list = level.getEntities((Entity) null, box, entity -> entity != null && !entity.isRemoved() && !(entity instanceof Player));
+            AABB queryBox = box.inflate(1.0, 0.5, 1.0);
+            List<Entity> list = level.getEntities((Entity) null, queryBox, entity -> entity != null && !entity.isRemoved() && !(entity instanceof Player));
             if (list != null) {
                 candidateEntities.addAll(list);
             }
@@ -224,9 +243,7 @@ public class CounterSign {
                 for (Entity e : clientLevel.entitiesForRendering()) {
                     if (e != null && !e.isRemoved() && !(e instanceof Player)) {
                         if (e instanceof ItemEntity || e.isAlive()) {
-                            if (box.intersects(e.getBoundingBox())) {
-                                candidateEntities.add(e);
-                            }
+                            candidateEntities.add(e);
                         }
                     }
                 }
@@ -238,7 +255,20 @@ public class CounterSign {
                 continue;
             }
 
-            if (!box.intersects(entity.getBoundingBox())) {
+            // Check direct bounding box intersection OR swept trajectory intersection (for items moving at high speed on ice)
+            AABB entityBox = entity.getBoundingBox();
+            boolean intersects = box.intersects(entityBox);
+            if (!intersects) {
+                AABB sweptBox = entityBox.minmax(new AABB(
+                        entity.xOld - 0.2, entity.yOld - 0.2, entity.zOld - 0.2,
+                        entity.xOld + 0.2, entity.yOld + 0.2, entity.zOld + 0.2
+                ));
+                if (box.intersects(sweptBox)) {
+                    intersects = true;
+                }
+            }
+
+            if (!intersects) {
                 continue;
             }
 
