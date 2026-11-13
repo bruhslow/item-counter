@@ -30,7 +30,7 @@ public class ItemCounterCommand {
 
     private static LiteralArgumentBuilder<FabricClientCommandSource> buildRootCommand(String root) {
         return ClientCommands.literal(root)
-                .executes(ctx -> showHelp(ctx.getSource()))
+                .executes(ctx -> openGui())
                 .then(ClientCommands.literal("help").executes(ctx -> showHelp(ctx.getSource())))
                 .then(ClientCommands.literal("gui").executes(ctx -> openGui()))
                 .then(ClientCommands.literal("menu").executes(ctx -> openGui()))
@@ -62,8 +62,8 @@ public class ItemCounterCommand {
         source.sendFeedback(Component.literal("§fReal-time item and entity flow counter for Minecraft 26.x"));
         source.sendFeedback(Component.literal(""));
         source.sendFeedback(Component.literal("§e§lCommands: §7(Click any command below to execute)"));
+        source.sendFeedback(createCommandRow("/itemcounter", "Open full Settings GUI (Holograms, HUD, Prices, Filters, Privacy)", "§aClick to open GUI"));
         source.sendFeedback(createCommandRow("/itemcounter help", "Display this help guide with all functions and commands", "§eClick to run /itemcounter help"));
-        source.sendFeedback(createCommandRow("/itemcounter gui", "Open full Settings GUI (Holograms, HUD, Prices, Filters, Privacy)", "§aClick to open GUI"));
         source.sendFeedback(createCommandRow("/itemcounter hud", "Drag and reposition the live watch sidebar box on your screen", "§aClick to move HUD"));
         source.sendFeedback(createCommandRow("/itemcounter list", "List all active counter signs, status, items counted & rates", "§aClick to list active counters"));
         source.sendFeedback(createCommandRow("/itemcounter reset", "Instantly restart the test on the nearest counter sign", "§aClick to reset nearest counter"));
