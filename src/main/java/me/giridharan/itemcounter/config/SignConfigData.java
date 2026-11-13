@@ -78,8 +78,7 @@ public class SignConfigData {
     }
 
     public double getEffectiveHeight(double globalHeight) {
-        if (customHologramHeight >= 0) return customHologramHeight;
-        return hologramHeight >= 0 ? hologramHeight : globalHeight;
+        return hologramHeight;
     }
 
     public double getEffectiveScale(double globalScale) {

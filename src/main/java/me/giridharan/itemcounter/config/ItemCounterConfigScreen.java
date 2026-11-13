@@ -295,10 +295,10 @@ public class ItemCounterConfigScreen {
                                 data.hologramHeight
                         )
                         .setDefaultValue(1.25)
-                        .setMin(0.0)
+                        .setMin(-10.0)
                         .setMax(10.0)
-                        .setSaveConsumer(val -> data.hologramHeight = Math.max(0.0, val))
-                        .setTooltip(Component.literal("Vertical distance of the floating hologram above this sign board (e.g. 1.25 just above, 2.5 higher up)."))
+                        .setSaveConsumer(val -> data.hologramHeight = Math.max(-10.0, Math.min(10.0, val)))
+                        .setTooltip(Component.literal("Vertical distance of the floating hologram relative to the sign board (e.g. 1.25 above, 0.0 at sign, or negative like -1.0 to bring text down)."))
                         .build());
 
                 signSub.add(entryBuilder.startDoubleField(

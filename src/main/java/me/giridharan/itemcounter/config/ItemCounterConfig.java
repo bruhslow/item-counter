@@ -23,7 +23,7 @@ public class ItemCounterConfig {
 
     // 3D In-World Hologram Customization
     public boolean showMoneyInHologram = true; // true = Items + Money, false = Only Items/Entities
-    public double hologramHeight = 1.25; // Vertical height offset above sign board (0.0 to 10.0 blocks)
+    public double hologramHeight = 1.25; // Vertical height offset (-10.0 to 10.0 blocks)
     public double hologramScale = 1.0; // Text size/scale (0.4 to 3.0)
 
     // Anti-Leak Privacy: Coordinates hidden from chat messages (DISABLED BY DEFAULT!)
