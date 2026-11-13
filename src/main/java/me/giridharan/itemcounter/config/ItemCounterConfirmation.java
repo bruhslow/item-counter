@@ -55,3 +55,4 @@ public class ItemCounterConfirmation {
         client.execute(() -> client.gui.setScreen(step1));
     }
 }
+

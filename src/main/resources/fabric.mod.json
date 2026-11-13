@@ -3,9 +3,9 @@
   "id": "itemcounter",
   "version": "1.0.0",
   "name": "Item Counter",
-  "description": "Item Counter mod for Fabric 26.2",
+  "description": "Converts any sign board into an active real-time farm item counter by typing 'counter'.\n• Measures items moving strictly in front of the sign face along water & ice streams.\n• Movable on-screen Live Watch sidebar with items/min speed & farm value calculations.\n• Features 3D floating holograms, multi-key keybinds, and coordinate privacy protection.",
   "authors": [
-    "Giridharan"
+    "Slowbag"
   ],
   "contact": {},
   "license": "MIT",
@@ -28,4 +28,3 @@
     "fabric-api": "*"
   }
 }
-
