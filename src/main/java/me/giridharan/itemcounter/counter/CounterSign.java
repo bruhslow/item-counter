@@ -142,11 +142,7 @@ public class CounterSign {
         if (data != null && data.customName != null && !data.customName.isBlank()) {
             return data.customName.trim();
         }
-        if (config.showCoordinatesInChat) {
-            return "Sign (" + pos.getX() + ", " + pos.getY() + ", " + pos.getZ() + ")";
-        } else {
-            return "Sign Counter";
-        }
+        return "Counter 1";
     }
 
     public void cycleMode(Player player) {
@@ -484,16 +480,10 @@ public class CounterSign {
                     ? " §7| §aValue: §e§l" + config.currencySymbol + String.format("%,.0f", totalMoneyValue) + " §7(§a~" + config.currencySymbol + String.format("%,.0f", moneyRateMin) + "/min§7)"
                     : "";
 
-            // Respect coordinates privacy: hide unless explicitly confirmed & enabled
-            String posStr = config.showCoordinatesInChat
-                    ? " §7at §e" + pos.toShortString()
-                    : "";
-
             player.sendSystemMessage(Component.literal(
                     "§6§l[Item Counter] §a§l✔ " + getSignCustomName() + " (" + getDisplayName() + ") Complete! §e§l"
                             + totalItemsCounted + " items §7(§b~" + String.format("%.0f", rateMin) + "/min§7)"
                             + moneyStr
-                            + posStr
             ));
         }
     }

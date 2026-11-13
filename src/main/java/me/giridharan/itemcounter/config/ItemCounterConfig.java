@@ -177,7 +177,8 @@ public class ItemCounterConfig {
             }
         }
 
-        data = new SignConfigData(x, y, z, "Sign (" + x + ", " + y + ", " + z + ")");
+        int signNum = getSignsForCurrentServer().size() + 1;
+        data = new SignConfigData(x, y, z, "Counter " + signNum);
         data.serverId = currentWorld;
         signConfigs.put(scopedKey, data);
         save();
@@ -201,7 +202,9 @@ public class ItemCounterConfig {
     public void addCustomSign(int x, int y, int z, String customName) {
         String currentWorld = getCurrentServerOrWorldId();
         String key = makeSignKey(currentWorld, x, y, z);
-        SignConfigData data = new SignConfigData(x, y, z, customName != null && !customName.isBlank() ? customName : "Sign (" + x + ", " + y + ", " + z + ")");
+        int signNum = getSignsForCurrentServer().size() + 1;
+        String defaultName = (customName != null && !customName.isBlank()) ? customName.trim() : ("Counter " + signNum);
+        SignConfigData data = new SignConfigData(x, y, z, defaultName);
         data.serverId = currentWorld;
         signConfigs.put(key, data);
         save();

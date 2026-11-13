@@ -226,6 +226,11 @@ public class CounterManager {
                         }
                     }
                 }
+                if (signConfig.customName == null || signConfig.customName.isBlank()) {
+                    int signNum = ItemCounterConfig.getInstance().getSignsForCurrentServer().size();
+                    signConfig.customName = "Counter " + (signNum > 0 ? signNum : 1);
+                    ItemCounterConfig.getInstance().save();
+                }
             }
 
             String fullSignContent = getCombinedText(targetText);

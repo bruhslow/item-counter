@@ -56,9 +56,6 @@ public class ItemCounterConfigScreen {
 
         ConfigEntryBuilder entryBuilder = builder.entryBuilder();
 
-        // Tracking variable for 2-step confirmation when enabling coordinates
-        final boolean[] requestedShowCoords = new boolean[]{ config.showCoordinatesInChat };
-
         // ==================== Category 1: Sign Boards & Farms ====================
         ConfigCategory signsCat = builder.getOrCreateCategory(Component.literal("Sign Boards & Farms"));
 
@@ -71,13 +68,12 @@ public class ItemCounterConfigScreen {
 
         if (currentSigns.isEmpty()) {
             signsCat.addEntry(entryBuilder.startTextDescription(
-                    Component.literal("§7No sign boards registered on §e" + currentWorldName + "§7 yet.\n§7Place a sign with 'counter' in-world or add one by coordinates below!")
+                    Component.literal("§7No sign boards registered on §e" + currentWorldName + "§7 yet.\n§7Place a sign with 'counter' in-world to start counting items!")
             ).build());
         } else {
             for (SignConfigData data : currentSigns.values()) {
-                String locTag = config.showCoordinatesInChat ? (" §7(" + data.x + ", " + data.y + ", " + data.z + ")") : "";
                 signsCat.addEntry(entryBuilder.startTextDescription(
-                        Component.literal("§6§l✦ Sign Board: §e§l" + data.getDisplayName() + locTag)
+                        Component.literal("§6§l✦ Sign Board: §e§l" + data.getDisplayName())
                 ).build());
 
                 // --- 1. General & Farm Settings (Default Minimized) ---
@@ -345,72 +341,13 @@ public class ItemCounterConfigScreen {
                         .build());
 
                 signsCat.addEntry(holoSub.build());
-
-                // --- 4. Coordinates & Anti-Leak Privacy (Default Minimized) ---
-                SubCategoryBuilder coordSub = entryBuilder.startSubCategory(Component.literal("📍 Coordinates & Privacy"));
-                coordSub.setExpanded(false);
-
-                coordSub.add(entryBuilder.startBooleanToggle(
-                                Component.literal("Show Coordinates in Chat & UI"),
-                                config.showCoordinatesInChat
-                        )
-                        .setDefaultValue(false)
-                        .setSaveConsumer(val -> requestedShowCoords[0] = val)
-                        .setTooltip(Component.literal("Toggle ON and click Save to reveal farm coordinates. Requires 2-step confirmation to protect your base."))
-                        .build());
-
-                coordSub.add(entryBuilder.startTextDescription(
-                        Component.literal(config.showCoordinatesInChat
-                                ? ("§a📍 Exact Farm Location: §eX=" + data.x + ", Y=" + data.y + ", Z=" + data.z)
-                                : "§8[📍 Location Coordinates Hidden for Anti-Leak Privacy - Toggle ON above to reveal]")
-                ).build());
-
-                signsCat.addEntry(coordSub.build());
             }
         }
 
-        // Add Sign Board by Coordinates section
-        SubCategoryBuilder addSub = entryBuilder.startSubCategory(Component.literal("§a➕ Add Sign Board by Coordinates"));
-        addSub.setExpanded(false);
-        final int[] newCoords = new int[]{0, 64, 0};
-        final String[] newName = new String[]{""};
+        // ==================== Category 2: General Settings ====================
+        ConfigCategory general = builder.getOrCreateCategory(Component.literal("General Settings"));
 
-        addSub.add(entryBuilder.startIntField(Component.literal("Coordinate X"), 0)
-                .setSaveConsumer(val -> newCoords[0] = val).build());
-        addSub.add(entryBuilder.startIntField(Component.literal("Coordinate Y"), 64)
-                .setSaveConsumer(val -> newCoords[1] = val).build());
-        addSub.add(entryBuilder.startIntField(Component.literal("Coordinate Z"), 0)
-                .setSaveConsumer(val -> newCoords[2] = val).build());
-        addSub.add(entryBuilder.startStrField(Component.literal("Sign Name"), "")
-                .setSaveConsumer(val -> newName[0] = val)
-                .setTooltip(Component.literal("Leave empty to name automatically."))
-                .build());
-
-        addSub.add(entryBuilder.startBooleanToggle(Component.literal("Confirm Add Sign on Save"), false)
-                .setSaveConsumer(confirm -> {
-                    if (confirm) {
-                        config.addCustomSign(newCoords[0], newCoords[1], newCoords[2], newName[0]);
-                    }
-                })
-                .setTooltip(Component.literal("Toggle ON and click Save to add this sign board to your manager."))
-                .build());
-
-        signsCat.addEntry(addSub.build());
-
-        // ==================== Category 2: General & Privacy ====================
-        ConfigCategory general = builder.getOrCreateCategory(Component.literal("General & Privacy"));
-
-        // 1. Coordinates Privacy Toggle (DISABLED BY DEFAULT!)
-        general.addEntry(entryBuilder.startBooleanToggle(
-                        Component.literal("Show Coordinates in Chat"),
-                        config.showCoordinatesInChat
-                )
-                .setDefaultValue(false)
-                .setSaveConsumer(val -> requestedShowCoords[0] = val)
-                .setTooltip(Component.literal("DISABLED BY DEFAULT to prevent leaking farm coordinates in chat. Turning this ON requires 2 confirmations."))
-                .build());
-
-        // 2. Keybind for Opening GUI (Starts UNBOUND / NONE)
+        // 1. Keybind for Opening GUI (Starts UNBOUND / NONE)
         general.addEntry(entryBuilder.startModifierKeyCodeField(
                         Component.literal("Open Config Menu Keybind"),
                         config.getOpenGuiKey()
@@ -471,22 +408,7 @@ public class ItemCounterConfigScreen {
                 Component.literal("§e💡 Move Sidebar: §fType §b/itemcounter hud §fin chat to click and drag the sidebar anywhere with your mouse!")
         ).build());
 
-        // Saving logic with 2-step confirmation when enabling coordinates
-        builder.setSavingRunnable(() -> {
-            boolean wasEnabled = config.showCoordinatesInChat;
-            boolean wantsEnabled = requestedShowCoords[0];
-
-            if (!wasEnabled && wantsEnabled) {
-                // Must ask TWO TIMES before enabling coordinates!
-                ItemCounterConfirmation.requestEnableCoordinates(client, parent, () -> {
-                    config.showCoordinatesInChat = true;
-                    config.save();
-                });
-            } else {
-                config.showCoordinatesInChat = wantsEnabled;
-                config.save();
-            }
-        });
+        builder.setSavingRunnable(config::save);
 
         return builder.build();
     }

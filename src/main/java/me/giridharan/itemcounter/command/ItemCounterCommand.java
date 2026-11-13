@@ -79,7 +79,6 @@ public class ItemCounterCommand {
         source.sendFeedback(Component.literal(" §b• 3D Hologram: §fDisplays floating text above sign with items passed, rates & value (height/size customizable in GUI)."));
         source.sendFeedback(Component.literal(" §b• Sidebar HUD: §fLive watch display showing active farm rates in real-time. Move it using §b/itemcounter hud§f."));
         source.sendFeedback(Component.literal(" §b• Pricing & Economy: §fSet item prices in §b/itemcounter gui §fto see hourly earnings & total value."));
-        source.sendFeedback(Component.literal(" §b• Coordinate Privacy: §fCoordinates are hidden by default in chat to prevent base/farm leaks."));
         source.sendFeedback(Component.literal("§6§l=============================================================="));
         return 1;
     }
@@ -106,12 +105,11 @@ public class ItemCounterCommand {
             BlockPos pos = entry.getKey();
             CounterSign c = entry.getValue();
             String name = c.getSignCustomName();
-            String posStr = config.showCoordinatesInChat ? (" §7(" + pos.toShortString() + ")") : "";
             double money = c.getTotalMoneyValue();
             String moneyStr = config.showMoneyInHud ? (" §7| Value: §a" + config.currencySymbol + String.format("%,.0f", money)) : "";
             String status = c.isFinished() ? "§a[DONE]" : (c.isRunning() ? "§e[RUNNING]" : "§7[PAUSED]");
 
-            source.sendFeedback(Component.literal("§e- §f" + name + posStr + " " + status + " §7Mode: §b" + c.getDisplayName()
+            source.sendFeedback(Component.literal("§e- §f" + name + " " + status + " §7Mode: §b" + c.getDisplayName()
                     + " §7| Items: §a§l" + c.getTotalItemsCounted() + " §7(~" + (int) c.getRatePerMinute() + "/m)" + moneyStr));
         }
         return 1;
@@ -139,8 +137,7 @@ public class ItemCounterCommand {
         if (closest != null) {
             CounterSign c = counters.get(closest);
             c.restart();
-            String posStr = ItemCounterConfig.getInstance().showCoordinatesInChat ? (" (" + closest.toShortString() + ")") : "";
-            source.sendFeedback(Component.literal("§6[Item Counter] §aRestarted " + c.getSignCustomName() + posStr + "!"));
+            source.sendFeedback(Component.literal("§6[Item Counter] §aRestarted " + c.getSignCustomName() + "!"));
         }
         return 1;
     }

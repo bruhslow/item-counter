@@ -96,16 +96,15 @@ public class SignConfigData {
         return hologramScale > 0 ? hologramScale : globalScale;
     }
 
-    public String getDisplayName(boolean showCoords) {
+    public String getDisplayName() {
         if (customName != null && !customName.trim().isEmpty()) {
             return customName.trim();
         }
-        return showCoords ? ("Sign (" + x + ", " + y + ", " + z + ")") : "Sign Counter";
+        return "Counter 1";
     }
 
-    public String getDisplayName() {
-        ItemCounterConfig config = ItemCounterConfig.getInstance();
-        return getDisplayName(config.showCoordinatesInChat);
+    public String getDisplayName(boolean unused) {
+        return getDisplayName();
     }
 
     public String getKey() {
