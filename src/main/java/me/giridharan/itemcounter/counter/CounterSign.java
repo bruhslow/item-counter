@@ -189,15 +189,16 @@ public class CounterSign {
         itemRecords.removeIf(record -> (now - record.timeMs()) > 30000L);
 
         // 2. Stream Detection Box:
-        // Designed to seamlessly detect both:
+        // Designed to detect strictly in front of the sign board:
         // - Standing sign placed on top of border block facing the stream (Image 1):
         //   detects items in the ice/water stream 1 block in front and 1-2 blocks below (Y - 1, Y - 2 on blue ice).
         // - Wall sign placed sideways on the glass wall (Image 2):
-        //   detects items in the ice stream through/beside the glass block.
-        // - High-speed ice movement: spans 4 blocks along the stream channel and uses continuous swept trajectory testing.
+        //   detects items in the ice stream at the sign block or in front of it.
+        // - Perpendicular / Side axis: STRICTLY restricted to that particular 1-block slice aligned with the sign.
+        //   Items passing 1 block or 2 blocks to the side are completely ignored!
+        // - High-speed ice movement: uses exact swept trajectory testing so items moving fast on ice are not skipped.
         Direction targetDir = getActiveDetectionDirection();
         BlockPos frontPos = pos.relative(targetDir);
-        BlockPos backPos = pos.relative(targetDir.getOpposite());
 
         Direction.Axis facingAxis = targetDir.getAxis();
         Direction.Axis perpAxis = (facingAxis == Direction.Axis.X) ? Direction.Axis.Z : Direction.Axis.X;
@@ -206,17 +207,17 @@ public class CounterSign {
         boolean strict = config.strictInFrontOnly;
         AABB box;
         if (strict) {
-            // Across stream: covers backPos (through glass/wall for Image 2) up to frontPos (stream in front for Image 1)
-            double minFacing = Math.min(backPos.get(facingAxis), frontPos.get(facingAxis)) - 0.15;
-            double maxFacing = Math.max(backPos.get(facingAxis), frontPos.get(facingAxis)) + 1.15;
+            // Across stream (facing axis): covers sign block (pos) and the block straight in front (frontPos)
+            double minFacing = Math.min(pos.get(facingAxis), frontPos.get(facingAxis));
+            double maxFacing = Math.max(pos.get(facingAxis), frontPos.get(facingAxis)) + 1.0;
 
-            // Along the ice stream channel (perpendicular to sign face): spans 4 blocks so fast items on ice are caught
-            double minPerp = pos.get(perpAxis) - 1.5;
-            double maxPerp = pos.get(perpAxis) + 2.5;
+            // Along the side axis (perpAxis): STRICTLY 1 block wide — exactly that particular block aligned with the sign!
+            double minPerp = pos.get(perpAxis);
+            double maxPerp = pos.get(perpAxis) + 1.0;
 
-            // Vertically (Y): covers pos (sign itself) down to Y - 2.5 (detecting water at Y - 1 and blue ice floor at Y - 2)
-            double minY = pos.getY() - 2.5;
-            double maxY = pos.getY() + 1.15;
+            // Vertically (Y): covers pos (sign itself) down to Y - 2.2 (detecting water at Y - 1 and blue ice floor at Y - 2)
+            double minY = pos.getY() - 2.2;
+            double maxY = pos.getY() + 1.2;
 
             double minX = (facingAxis == Direction.Axis.X) ? minFacing : minPerp;
             double maxX = (facingAxis == Direction.Axis.X) ? maxFacing : maxPerp;
@@ -234,7 +235,7 @@ public class CounterSign {
         // Query entities within the stream box using dual lookup (spatial index + client rendering iterator)
         Set<Entity> candidateEntities = new LinkedHashSet<>();
         try {
-            AABB queryBox = box.inflate(1.0, 0.5, 1.0);
+            AABB queryBox = box.inflate(1.5, 0.5, 1.5);
             List<Entity> list = level.getEntities((Entity) null, queryBox, entity -> entity != null && !entity.isRemoved() && !(entity instanceof Player));
             if (list != null) {
                 candidateEntities.addAll(list);
@@ -263,14 +264,37 @@ public class CounterSign {
                 continue;
             }
 
+            // Strict check: Entity must belong to that particular 1-block column (not side 1 block or side 2 blocks)
+            if (strict) {
+                double perpVal = (perpAxis == Direction.Axis.X) ? entity.getX() : entity.getZ();
+                double prevPerpVal = (perpAxis == Direction.Axis.X) ? entity.xOld : entity.zOld;
+                int targetPerpBlock = pos.get(perpAxis);
+                int curPerpBlock = (int) Math.floor(perpVal);
+
+                boolean inPerpColumn = (curPerpBlock == targetPerpBlock);
+                if (!inPerpColumn) {
+                    // Allow if the item swept across this particular block during high-speed ice transit
+                    double minTraj = Math.min(prevPerpVal, perpVal);
+                    double maxTraj = Math.max(prevPerpVal, perpVal);
+                    if (minTraj <= (targetPerpBlock + 0.5) && maxTraj >= (targetPerpBlock + 0.5)) {
+                        inPerpColumn = true;
+                    }
+                }
+
+                if (!inPerpColumn) {
+                    continue; // Strictly reject any item 1 block or 2 blocks to the side!
+                }
+            }
+
             // Check direct bounding box intersection OR swept trajectory intersection (for items moving at high speed on ice)
             AABB entityBox = entity.getBoundingBox();
             boolean intersects = box.intersects(entityBox);
             if (!intersects) {
-                AABB sweptBox = entityBox.minmax(new AABB(
-                        entity.xOld - 0.2, entity.yOld - 0.2, entity.zOld - 0.2,
-                        entity.xOld + 0.2, entity.yOld + 0.2, entity.zOld + 0.2
-                ));
+                double dx = entity.xOld - entity.getX();
+                double dy = entity.yOld - entity.getY();
+                double dz = entity.zOld - entity.getZ();
+                AABB prevBox = entityBox.move(dx, dy, dz);
+                AABB sweptBox = entityBox.minmax(prevBox);
                 if (box.intersects(sweptBox)) {
                     intersects = true;
                 }
