@@ -8,6 +8,7 @@ public class SignConfigData {
     public String customName = "";
     public boolean showInHud = true;
     public String itemFilter = ""; // Comma-separated item names e.g. "iron_ingot, poppy"
+    public double customHologramHeight = -1.0; // -1 = use global config
 
     public SignConfigData() {}
 
@@ -18,6 +19,7 @@ public class SignConfigData {
         this.customName = customName;
         this.showInHud = true;
         this.itemFilter = "";
+        this.customHologramHeight = -1.0;
     }
 
     public String getDisplayName(boolean showCoords) {

@@ -2,6 +2,7 @@ package me.giridharan.itemcounter.renderer;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import me.giridharan.itemcounter.config.ItemCounterConfig;
+import me.giridharan.itemcounter.config.SignConfigData;
 import me.giridharan.itemcounter.counter.CounterManager;
 import me.giridharan.itemcounter.counter.CounterSign;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
@@ -44,8 +45,11 @@ public class CounterHologramRenderer {
                 BlockPos pos = entry.getKey();
                 CounterSign sign = entry.getValue();
 
+                SignConfigData sc = config.getSignConfig(pos.getX(), pos.getY(), pos.getZ());
+                double heightOffset = (sc != null && sc.customHologramHeight >= 0) ? sc.customHologramHeight : config.hologramHeight;
+
                 double baseX = pos.getX() + 0.5;
-                double baseY = pos.getY() + 1.25;
+                double baseY = pos.getY() + heightOffset;
                 double baseZ = pos.getZ() + 0.5;
 
                 double distSq = camPos.distanceToSqr(baseX, baseY, baseZ);
@@ -60,8 +64,13 @@ public class CounterHologramRenderer {
 
     private static void renderHologram(SubmitNodeCollector collector, PoseStack poseStack, CameraRenderState camera, Vec3 camPos, double baseX, double baseY, double baseZ, CounterSign sign, ItemCounterConfig config) {
         poseStack.pushPose();
-        // Translate poseStack to sign position relative to camera origin
+
+        // Translate poseStack to sign position + custom vertical height relative to camera origin
         poseStack.translate(baseX - camPos.x, baseY - camPos.y, baseZ - camPos.z);
+
+        // Apply custom hologram text scale
+        float scale = (float) Math.max(0.4, Math.min(3.0, config.hologramScale));
+        poseStack.scale(scale, scale, scale);
 
         // Line 1: Header with custom sign name and mode
         String signName = sign.getSignCustomName();
@@ -74,9 +83,9 @@ public class CounterHologramRenderer {
         double rateMin = sign.getRatePerMinute();
         Component line2 = Component.literal("§fPassed: §e§l" + sign.getTotalItemsCounted() + " items §7(~" + String.format("%.0f", rateMin) + "/m)");
 
-        // Line 3: Value/Money if enabled, otherwise speed per second
+        // Line 3: Value/Money if enabled in hologram, otherwise speed per second
         Component line3;
-        if (config.showMoneyInHud) {
+        if (config.showMoneyInHologram) {
             double totalMoney = sign.getTotalMoneyValue();
             double moneyRateMin = sign.getMoneyRatePerMinute();
             line3 = Component.literal("§aValue: §e§l" + config.currencySymbol + String.format("%,.0f", totalMoney) + " §7(§a~" + config.currencySymbol + String.format("%,.0f", moneyRateMin) + "/m§7)");

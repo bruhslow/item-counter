@@ -29,6 +29,13 @@ public class ItemCounterCommand {
                 .then(ClientCommands.literal("move").executes(ctx -> openHudEditor()))
                 .then(ClientCommands.literal("coords").executes(ctx -> toggleCoordinates(ctx.getSource())))
                 .then(ClientCommands.literal("showcoords").executes(ctx -> toggleCoordinates(ctx.getSource())))
+                .then(ClientCommands.literal("money").executes(ctx -> toggleMoney(ctx.getSource())))
+                .then(ClientCommands.literal("height")
+                        .then(ClientCommands.argument("blocks", DoubleArgumentType.doubleArg(0.0, 10.0))
+                                .executes(ctx -> setHologramHeight(ctx.getSource(), DoubleArgumentType.getDouble(ctx, "blocks")))))
+                .then(ClientCommands.literal("scale")
+                        .then(ClientCommands.argument("size", DoubleArgumentType.doubleArg(0.4, 3.0))
+                                .executes(ctx -> setHologramScale(ctx.getSource(), DoubleArgumentType.getDouble(ctx, "size")))))
                 .then(ClientCommands.literal("help").executes(ctx -> showHelp(ctx.getSource())))
                 .then(ClientCommands.literal("list").executes(ctx -> listCounters(ctx.getSource())))
                 .then(ClientCommands.literal("clear").executes(ctx -> clearCounters(ctx.getSource())))
@@ -51,6 +58,13 @@ public class ItemCounterCommand {
                 .then(ClientCommands.literal("move").executes(ctx -> openHudEditor()))
                 .then(ClientCommands.literal("coords").executes(ctx -> toggleCoordinates(ctx.getSource())))
                 .then(ClientCommands.literal("showcoords").executes(ctx -> toggleCoordinates(ctx.getSource())))
+                .then(ClientCommands.literal("money").executes(ctx -> toggleMoney(ctx.getSource())))
+                .then(ClientCommands.literal("height")
+                        .then(ClientCommands.argument("blocks", DoubleArgumentType.doubleArg(0.0, 10.0))
+                                .executes(ctx -> setHologramHeight(ctx.getSource(), DoubleArgumentType.getDouble(ctx, "blocks")))))
+                .then(ClientCommands.literal("scale")
+                        .then(ClientCommands.argument("size", DoubleArgumentType.doubleArg(0.4, 3.0))
+                                .executes(ctx -> setHologramScale(ctx.getSource(), DoubleArgumentType.getDouble(ctx, "size")))))
                 .then(ClientCommands.literal("help").executes(ctx -> showHelp(ctx.getSource())))
                 .then(ClientCommands.literal("list").executes(ctx -> listCounters(ctx.getSource())))
                 .then(ClientCommands.literal("clear").executes(ctx -> clearCounters(ctx.getSource())))
@@ -81,18 +95,42 @@ public class ItemCounterCommand {
         return 1;
     }
 
+    private static int setHologramHeight(FabricClientCommandSource source, double height) {
+        ItemCounterConfig config = ItemCounterConfig.getInstance();
+        config.hologramHeight = height;
+        config.save();
+        source.sendFeedback(Component.literal("§6[Item Counter] §aSet 3D hologram vertical height to: §b§l" + height + " blocks"));
+        return 1;
+    }
+
+    private static int setHologramScale(FabricClientCommandSource source, double scale) {
+        ItemCounterConfig config = ItemCounterConfig.getInstance();
+        config.hologramScale = scale;
+        config.save();
+        source.sendFeedback(Component.literal("§6[Item Counter] §aSet 3D hologram text size/scale to: §b§l" + scale + "x"));
+        return 1;
+    }
+
+    private static int toggleMoney(FabricClientCommandSource source) {
+        ItemCounterConfig config = ItemCounterConfig.getInstance();
+        config.showMoneyInHologram = !config.showMoneyInHologram;
+        config.showMoneyInHud = config.showMoneyInHologram;
+        config.save();
+        String status = config.showMoneyInHologram ? "§a§lENABLED (Entities + Money)" : "§e§lDISABLED (Only Entities)";
+        source.sendFeedback(Component.literal("§6[Item Counter] §aMoney display in hologram & sidebar: " + status));
+        return 1;
+    }
+
     private static int toggleCoordinates(FabricClientCommandSource source) {
         Minecraft client = Minecraft.getInstance();
         ItemCounterConfig config = ItemCounterConfig.getInstance();
 
         if (config.showCoordinatesInChat) {
-            // Turning OFF is instant and safe
             config.showCoordinatesInChat = false;
             config.save();
             source.sendFeedback(Component.literal("§6[Item Counter] §aCoordinates in chat have been §c§lHIDDEN§a (safe mode)."));
             return 1;
         } else {
-            // Turning ON requires 2-step confirmation prompt!
             client.execute(() -> {
                 ItemCounterConfirmation.requestEnableCoordinates(client, null, () -> {
                     config.showCoordinatesInChat = true;
@@ -106,16 +144,16 @@ public class ItemCounterCommand {
     private static int showHelp(FabricClientCommandSource source) {
         source.sendFeedback(Component.literal("§6§l=== Item Counter Guide (Fabric 26.2) ==="));
         source.sendFeedback(Component.literal("§e1. §fPlace a sign and write §bcounter §fon it."));
-        source.sendFeedback(Component.literal("   §7Coordinates are §c§lHIDDEN§7 by default to protect your base location."));
         source.sendFeedback(Component.literal("§e2. §fOpen Settings: §b/counter gui §7(or press your bound key)"));
-        source.sendFeedback(Component.literal("   §7- Rename each sign board (e.g. 'Iron Farm', 'Gold Line')"));
-        source.sendFeedback(Component.literal("   §7- Filter specific items to count for each sign"));
-        source.sendFeedback(Component.literal("   §7- Set prices for items & toggle money display in sidebar"));
-        source.sendFeedback(Component.literal("§e3. §fMove Sidebar HUD: §b/counter hud §7(click & drag anywhere)"));
-        source.sendFeedback(Component.literal("§e4. §fCommands:"));
-        source.sendFeedback(Component.literal("   §7- §b/counter coords §f: Toggle coordinate privacy (requires 2 confirmations to enable)"));
-        source.sendFeedback(Component.literal("   §7- §b/counter rename <name> §f: Quick rename nearest counter"));
-        source.sendFeedback(Component.literal("   §7- §b/counter price <item> <cost> §f: Set item price"));
+        source.sendFeedback(Component.literal("   §7- Adjust 3D Hologram vertical height & text scale"));
+        source.sendFeedback(Component.literal("   §7- Toggle between 'Only Entities' or 'Entities + Money'"));
+        source.sendFeedback(Component.literal("   §7- Rename each sign board & filter specific items"));
+        source.sendFeedback(Component.literal("§e3. §fCommands:"));
+        source.sendFeedback(Component.literal("   §7- §b/counter height <blocks> §f: Set hologram vertical height (e.g. 1.5, 2.5)"));
+        source.sendFeedback(Component.literal("   §7- §b/counter scale <size> §f: Set hologram size (e.g. 0.8, 1.2)"));
+        source.sendFeedback(Component.literal("   §7- §b/counter money §f: Toggle money generated on/off"));
+        source.sendFeedback(Component.literal("   §7- §b/counter hud §f: Drag & move sidebar HUD"));
+        source.sendFeedback(Component.literal("   §7- §b/counter coords §f: Toggle coordinate privacy"));
         source.sendFeedback(Component.literal("   §7- §b/counter reset §f: Restart nearest counter"));
         source.sendFeedback(Component.literal("   §7- §b/counter list §f: Show all active counters & values"));
         return 1;
