@@ -154,9 +154,10 @@ public class CounterHologramRenderer {
         }
 
         // Submit billboard nametags dynamically spaced along Y
+        boolean seeThrough = sc.showHoloBackground;
         for (int i = 0; i < visibleLines.size(); i++) {
             double yOffset = (visibleLines.size() - 1 - i) * 0.25;
-            collector.submitNameTag(poseStack, new Vec3(0, yOffset, 0), 0, visibleLines.get(i), true, 0xF000F0, camera);
+            collector.submitNameTag(poseStack, new Vec3(0, yOffset, 0), 0, visibleLines.get(i), seeThrough, 0xF000F0, camera);
         }
 
         poseStack.popPose();

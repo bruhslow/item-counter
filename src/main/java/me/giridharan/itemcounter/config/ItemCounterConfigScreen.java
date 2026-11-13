@@ -291,6 +291,15 @@ public class ItemCounterConfigScreen {
                         .setTooltip(Component.literal("YES = Show 'Right-click: reset | Shift+Right-click: mode' footer in the hologram."))
                         .build());
 
+                holoSub.add(entryBuilder.startBooleanToggle(
+                                Component.literal("Show Hologram Dark Background Plate"),
+                                data.showHoloBackground
+                        )
+                        .setDefaultValue(true)
+                        .setSaveConsumer(val -> data.showHoloBackground = val)
+                        .setTooltip(Component.literal("YES = Dark see-through plate behind floating lines. NO = Clean text without dark background box."))
+                        .build());
+
                 holoSub.add(entryBuilder.startDoubleField(
                                 Component.literal("Hologram Vertical Height (Blocks)"),
                                 data.hologramHeight
@@ -417,14 +426,14 @@ public class ItemCounterConfigScreen {
                 .setTooltip(Component.literal("Only counts items moving directly in the 1-block stream facing the sign board."))
                 .build());
 
-        // 5. Global Enable Sidebar HUD (DISABLED BY DEFAULT)
+        // 5. Global Enable Sidebar HUD
         general.addEntry(entryBuilder.startBooleanToggle(
                         Component.literal("Enable Live Watch Sidebar HUD"),
                         config.showLiveWatchHud
                 )
-                .setDefaultValue(false)
+                .setDefaultValue(true)
                 .setSaveConsumer(val -> config.showLiveWatchHud = val)
-                .setTooltip(Component.literal("Master switch for displaying the movable live watch sidebar box on screen (Default: OFF)."))
+                .setTooltip(Component.literal("Master switch for displaying the movable live watch sidebar box on screen."))
                 .build());
 
         // 6. Currency Symbol

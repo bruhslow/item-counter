@@ -32,6 +32,7 @@ public class SignConfigData {
     public boolean showMoneyInHologram = true; // Show total money earned in hologram
     public boolean showHoloMoneyRate = false; // Show money per sec/min (DEFAULT FALSE: REMOVED as requested)
     public boolean showHoloGuide = true; // Show interaction guide footer (Right-click reset)
+    public boolean showHoloBackground = true; // Show dark see-through plate behind floating text
     public double hologramHeight = 1.25; // Vertical height offset (0.0 to 10.0 blocks)
     public double hologramScale = 1.0; // Size/scale (0.4x to 3.0x)
 
@@ -69,6 +70,7 @@ public class SignConfigData {
         this.showMoneyInHologram = true;
         this.showHoloMoneyRate = false;
         this.showHoloGuide = true;
+        this.showHoloBackground = true;
         this.hologramHeight = 1.25;
         this.hologramScale = 1.0;
 

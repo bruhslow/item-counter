@@ -23,14 +23,14 @@ public class ItemCounterConfig {
 
     // 3D In-World Hologram Customization
     public boolean showMoneyInHologram = true; // true = Items + Money, false = Only Items/Entities
-    public double hologramHeight = 1.25; // Vertical height offset (-10.0 to 10.0 blocks)
+    public double hologramHeight = 0.5; // Vertical height offset (-10.0 to 10.0 blocks)
     public double hologramScale = 1.0; // Text size/scale (0.4 to 3.0)
 
     // Anti-Leak Privacy: Coordinates hidden from chat messages (DISABLED BY DEFAULT!)
     public boolean showCoordinatesInChat = false;
 
-    // Live Watch On-Screen Sidebar HUD (DISABLED BY DEFAULT!)
-    public boolean showLiveWatchHud = false;
+    // Live Watch On-Screen Sidebar HUD (ENABLED BY DEFAULT)
+    public boolean showLiveWatchHud = true;
     public boolean showMoneyInHud = true;
     public String currencySymbol = "$";
     public int liveWatchX = 10;

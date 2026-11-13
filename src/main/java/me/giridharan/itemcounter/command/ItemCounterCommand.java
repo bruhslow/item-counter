@@ -52,6 +52,9 @@ public class ItemCounterCommand {
     private static int openHudEditor() {
         Minecraft client = Minecraft.getInstance();
         client.execute(() -> {
+            ItemCounterConfig config = ItemCounterConfig.getInstance();
+            config.showLiveWatchHud = true;
+            config.save();
             client.gui.setScreen(new ItemCounterHudEditScreen(null));
         });
         return 1;

@@ -50,10 +50,34 @@ public class ItemCounterHudRenderer {
 
         // Collect all active counters that have showInHud == true within 192 blocks
         List<CounterSign> enabledSigns = new ArrayList<>();
+
+        // 1. Check all in-world active counter signs
+        for (Map.Entry<BlockPos, CounterSign> entry : counters.entrySet()) {
+            BlockPos pos = entry.getKey();
+            CounterSign sign = entry.getValue();
+
+            // Skip if chunk is loaded and block is air or not a sign
+            if (client.level.isLoaded(pos)) {
+                net.minecraft.world.level.block.state.BlockState state = client.level.getBlockState(pos);
+                if (state.isAir() || !(state.getBlock() instanceof net.minecraft.world.level.block.SignBlock)) {
+                    continue;
+                }
+            }
+
+            if (pos.distSqr(playerPos) <= 192 * 192) {
+                SignConfigData sc = config.getOrCreateSignConfig(pos.getX(), pos.getY(), pos.getZ());
+                if (sc.showInHud) {
+                    enabledSigns.add(sign);
+                }
+            }
+        }
+
+        // 2. Also ensure any pre-configured signs from config are checked
         if (config.signConfigs != null) {
             for (SignConfigData sc : config.signConfigs.values()) {
                 if (!sc.showInHud) continue;
                 BlockPos pos = new BlockPos(sc.x, sc.y, sc.z);
+                if (counters.containsKey(pos)) continue; // Already handled above
 
                 // Skip if chunk is loaded and block is air
                 if (client.level.isLoaded(pos)) {
@@ -106,9 +130,9 @@ public class ItemCounterHudRenderer {
                 break; // Don't overflow bottom of screen
             }
 
-            // Background & Outline
-            graphics.fill(hudX, currentY, hudX + CARD_WIDTH, currentY + cardHeight, 0x88000000);
-            graphics.outline(hudX, currentY, CARD_WIDTH, cardHeight, 0x88555555);
+            // Sleek Modern Card Background & Outline
+            graphics.fill(hudX, currentY, hudX + CARD_WIDTH, currentY + cardHeight, 0xC0101520);
+            graphics.outline(hudX, currentY, CARD_WIDTH, cardHeight, 0xFF354555);
 
             int textY = currentY + 4;
 

@@ -63,6 +63,7 @@ public class ItemCounterHudEditScreen extends Screen {
     }
 
     private void savePosition() {
+        config.showLiveWatchHud = true;
         config.liveWatchX = hudX;
         config.liveWatchY = hudY;
         config.save();
