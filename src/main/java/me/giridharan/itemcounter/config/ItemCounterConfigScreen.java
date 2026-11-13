@@ -185,9 +185,9 @@ public class ItemCounterConfigScreen {
                                 Component.literal("Show Item Flow Speed (~items/min)"),
                                 data.showHudRate
                         )
-                        .setDefaultValue(true)
+                        .setDefaultValue(false)
                         .setSaveConsumer(val -> data.showHudRate = val)
-                        .setTooltip(Component.literal("YES = Show calculated items per minute speed indicator next to the item count."))
+                        .setTooltip(Component.literal("YES = Show calculated items per minute speed indicator next to the item count. (Default: No)"))
                         .build());
 
                 hudSub.add(entryBuilder.startBooleanToggle(
@@ -263,9 +263,9 @@ public class ItemCounterConfigScreen {
                                 Component.literal("Show Item Flow Speed (~items/min)"),
                                 data.showHoloRate
                         )
-                        .setDefaultValue(true)
+                        .setDefaultValue(false)
                         .setSaveConsumer(val -> data.showHoloRate = val)
-                        .setTooltip(Component.literal("YES = Show live calculated flow rate (~items/min) next to entity passed."))
+                        .setTooltip(Component.literal("YES = Show live calculated flow rate (~items/min) next to entity passed. (Default: No)"))
                         .build());
 
                 holoSub.add(entryBuilder.startBooleanToggle(

@@ -21,7 +21,7 @@ public class SignConfigData {
     public boolean showHudHeader = true; // Show sign name on HUD card
     public boolean showHudBadge = true; // Show mode badge [LIVE] / [10s]
     public boolean showHudCount = true; // Show entity passed count
-    public boolean showHudRate = true; // Show flow rate (~items/min)
+    public boolean showHudRate = false; // Show flow rate (~items/min) (Default: No)
     public boolean showMoneyInHud = true; // Show total money earned on HUD
     public boolean showHudMoneyRate = false; // Show money per sec/min (DEFAULT FALSE: REMOVED as requested)
     public boolean showHudFooter = true; // Show monitor status footer
@@ -31,7 +31,7 @@ public class SignConfigData {
     public boolean showHoloHeader = true; // Show custom name in hologram
     public boolean showHoloBadge = true; // Show mode badge [LIVE RATE]
     public boolean showHoloCount = true; // Show entity passed count
-    public boolean showHoloRate = true; // Show flow rate (~items/min)
+    public boolean showHoloRate = false; // Show flow rate (~items/min) (Default: No)
     public boolean showMoneyInHologram = true; // Show total money earned in hologram
     public boolean showHoloMoneyRate = false; // Show money per sec/min (DEFAULT FALSE: REMOVED as requested)
     public boolean showHoloGuide = true; // Show interaction guide footer (Right-click reset)
@@ -60,7 +60,7 @@ public class SignConfigData {
         this.showHudHeader = true;
         this.showHudBadge = true;
         this.showHudCount = true;
-        this.showHudRate = true;
+        this.showHudRate = false;
         this.showMoneyInHud = true;
         this.showHudMoneyRate = false;
         this.showHudFooter = true;
@@ -69,7 +69,7 @@ public class SignConfigData {
         this.showHoloHeader = true;
         this.showHoloBadge = true;
         this.showHoloCount = true;
-        this.showHoloRate = true;
+        this.showHoloRate = false;
         this.showMoneyInHologram = true;
         this.showHoloMoneyRate = false;
         this.showHoloGuide = true;
