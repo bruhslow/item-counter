@@ -227,10 +227,10 @@ public class CounterSign {
                 maxFacing = signFacing + 2.0;
             }
 
-            // Along the stream flow (perpAxis): 6 blocks wide (-2.5 to +3.5 relative to sign)
-            // This guarantees items traveling on blue ice at 25-30 blocks/sec spend multiple consecutive ticks inside the detection zone!
-            double minPerp = pos.get(perpAxis) - 2.5;
-            double maxPerp = pos.get(perpAxis) + 3.5;
+            // Along the stream flow (perpAxis): clean 2.4 blocks centered right in front of the sign (-0.7 to +1.7)
+            // Perfectly timed as items pass the sign face, with trajectory raycasting ensuring 100% catch rate on ice!
+            double minPerp = pos.get(perpAxis) - 0.7;
+            double maxPerp = pos.get(perpAxis) + 1.7;
 
             // Vertically (Y): covers from Y - 2.5 (detecting water stream and blue ice floor) up to Y + 1.5
             double minY = pos.getY() - 2.5;
