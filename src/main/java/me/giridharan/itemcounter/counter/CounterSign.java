@@ -463,7 +463,7 @@ public class CounterSign {
     // Stacked / Grouped Item Support (up to 6400+)
     // ==========================================
 
-    private static final Pattern X_PATTERN = Pattern.compile("(?i)(?:\\bx\\s*([0-9]+(?:,[0-9]{3})*(?:\\.[0-9]+)?\\s*[kKmM]?)\\b|\\b([0-9]+(?:,[0-9]{3})*(?:\\.[0-9]+)?\\s*[kKmM]?)\\s*x\\b)");
+    private static final Pattern X_PATTERN = Pattern.compile("(?i)(?:[xX\u00D7]\\s*([0-9]+(?:,[0-9]{3})*(?:\\.[0-9]+)?\\s*[kKmM]?)\\b|\\b([0-9]+(?:,[0-9]{3})*(?:\\.[0-9]+)?\\s*[kKmM]?)\\s*[xX\u00D7])");
     private static final Pattern ENCLOSED_PATTERN = Pattern.compile("[\\(\\[\\{]\\s*(?:x\\s*)?([0-9]+(?:,[0-9]{3})*(?:\\.[0-9]+)?\\s*[kKmM]?)(?:\\s*x)?\\s*[\\)\\]\\}]", Pattern.CASE_INSENSITIVE);
     private static final Pattern SEPARATOR_PATTERN = Pattern.compile("[-:×*]\\s*([0-9]+(?:,[0-9]{3})*(?:\\.[0-9]+)?\\s*[kKmM]?)\\b");
     private static final Pattern SUFFIX_PATTERN = Pattern.compile("\\b([0-9]+(?:\\.[0-9]+)?)\\s*([kKmM])\\b");
@@ -558,7 +558,7 @@ public class CounterSign {
 
     public static int parseCountFromText(String text) {
         if (text == null || text.isBlank()) return 0;
-        String cleaned = text.replaceAll("[§&][0-9a-fk-orA-FK-OR]", " ").trim();
+        String cleaned = text.replaceAll("[§\u00A7].", " ").replaceAll("&[0-9a-fk-orxA-FK-ORX]", " ").trim();
         if (cleaned.isEmpty()) return 0;
 
         Matcher m = X_PATTERN.matcher(cleaned);
