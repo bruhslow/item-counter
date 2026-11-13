@@ -63,6 +63,7 @@ public class CounterSign {
     private int elapsedTicks = 0;
     private int totalItemsCounted = 0;
     private double totalMoneyValue = 0.0;
+    private boolean justRestarted = true;
 
     // Entity item counts map to properly handle item stacking & merging in streams
     private final Map<Integer, Integer> countedEntityItemCounts = new HashMap<>();
@@ -74,6 +75,7 @@ public class CounterSign {
     public CounterSign(BlockPos pos) {
         this.pos = pos;
         this.isRunning = true;
+        this.justRestarted = true;
     }
 
     public BlockPos getPos() {
@@ -163,6 +165,7 @@ public class CounterSign {
         this.countedEntityItemCounts.clear();
         this.itemRecords.clear();
         this.itemCounts.clear();
+        this.justRestarted = true;
     }
 
     public void tick(Level level, Player localPlayer) {
@@ -255,6 +258,11 @@ public class CounterSign {
                 continue;
             }
 
+            // Only count actual ItemEntities (ignore ambient mobs, spiders, slimes, item frames, etc.)
+            if (!(entity instanceof ItemEntity itemEntity)) {
+                continue;
+            }
+
             // Check direct bounding box intersection OR swept trajectory intersection (for items moving at high speed on ice)
             AABB entityBox = entity.getBoundingBox();
             boolean intersects = box.intersects(entityBox);
@@ -272,18 +280,14 @@ public class CounterSign {
                 continue;
             }
 
-            int currentCount = 1;
-            String rawId = "entity";
-            if (entity instanceof ItemEntity itemEntity) {
-                currentCount = Math.max(1, itemEntity.getItem().getCount());
-                Identifier id = BuiltInRegistries.ITEM.getKey(itemEntity.getItem().getItem());
-                rawId = id.getPath();
+            int currentCount = Math.max(1, itemEntity.getItem().getCount());
+            Identifier id = BuiltInRegistries.ITEM.getKey(itemEntity.getItem().getItem());
+            String rawId = id.getPath();
 
-                // Apply custom item filter if set by the user in GUI
-                if (!itemFilter.isEmpty()) {
-                    if (!matchesFilter(rawId, id.toString(), itemFilter)) {
-                        continue;
-                    }
+            // Apply custom item filter if set by the user in GUI
+            if (!itemFilter.isEmpty()) {
+                if (!matchesFilter(rawId, id.toString(), itemFilter)) {
+                    continue;
                 }
             }
 
@@ -292,6 +296,11 @@ public class CounterSign {
 
             if (newItems > 0) {
                 countedEntityItemCounts.put(entity.getId(), currentCount);
+
+                // If counter was just reset, baseline-track any items already sitting in the stream so counter starts at 0
+                if (justRestarted) {
+                    continue;
+                }
 
                 double unitPrice;
                 if (signConfig.useSignCustomPrice) {
@@ -307,6 +316,8 @@ public class CounterSign {
                 itemRecords.add(new CountRecord(now, newItems, money));
             }
         }
+
+        justRestarted = false;
 
         // 3. Check timer expiration for timed modes
         int targetSeconds = getTargetDurationSeconds();
