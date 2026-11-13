@@ -169,8 +169,12 @@ public class CounterSign {
         // Update sign facing if needed
         BlockState state = level.getBlockState(pos);
         if (state.getBlock() instanceof SignBlock signBlock) {
-            float yRot = signBlock.getYRotationDegrees(state);
-            this.frontDirection = Direction.fromYRot(yRot);
+            if (state.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING)) {
+                this.frontDirection = state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING);
+            } else {
+                float yRot = signBlock.getYRotationDegrees(state);
+                this.frontDirection = Direction.fromYRot(yRot);
+            }
         }
 
         if (!isRunning) return;
@@ -182,8 +186,9 @@ public class CounterSign {
         itemRecords.removeIf(record -> (now - record.timeMs()) > 30000L);
 
         // 2. Stream Detection Box:
-        // Captures items flowing directly in front of the sign face, items passing through the sign block itself (water gate),
-        // and items in adjacent streams or dropped into hoppers/chutes 1-2 blocks below/above.
+        // Captures items at the sign block (pos), the immediate block in front (frontPos),
+        // and the first block directly below both (pos.below() and frontPos.below()).
+        // Tight boundary prevents bleeding into blocks further away.
         Direction targetDir = getActiveDetectionDirection();
         BlockPos frontPos = pos.relative(targetDir);
 
@@ -191,15 +196,15 @@ public class CounterSign {
         boolean strict = config.strictInFrontOnly;
         AABB box;
         if (strict) {
-            double minX = Math.min(pos.getX(), frontPos.getX()) - 1.0;
-            double maxX = Math.max(pos.getX(), frontPos.getX()) + 2.0;
-            double minY = Math.min(pos.getY(), frontPos.getY()) - 1.5;
-            double maxY = Math.max(pos.getY(), frontPos.getY()) + 2.0;
-            double minZ = Math.min(pos.getZ(), frontPos.getZ()) - 1.0;
-            double maxZ = Math.max(pos.getZ(), frontPos.getZ()) + 2.0;
+            double minX = Math.min(pos.getX(), frontPos.getX()) - 0.05;
+            double maxX = Math.max(pos.getX(), frontPos.getX()) + 1.05;
+            double minY = Math.min(pos.getY(), frontPos.getY()) - 1.25; // Accurately captures the first block below (Y - 1)
+            double maxY = Math.max(pos.getY(), frontPos.getY()) + 1.05; // Captures the sign block itself (Y)
+            double minZ = Math.min(pos.getZ(), frontPos.getZ()) - 0.05;
+            double maxZ = Math.max(pos.getZ(), frontPos.getZ()) + 1.05;
             box = new AABB(minX, minY, minZ, maxX, maxY, maxZ);
         } else {
-            box = new AABB(pos).inflate(3.5, 2.5, 3.5);
+            box = new AABB(pos).inflate(2.0, 1.5, 2.0);
         }
 
         SignConfigData signConfig = config.getOrCreateSignConfig(pos.getX(), pos.getY(), pos.getZ());

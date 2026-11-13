@@ -165,8 +165,12 @@ public class CounterManager {
             Direction frontDir = Direction.NORTH;
             BlockState state = level.getBlockState(pos);
             if (state.getBlock() instanceof SignBlock signBlock) {
-                float yRot = signBlock.getYRotationDegrees(state);
-                frontDir = Direction.fromYRot(yRot);
+                if (state.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING)) {
+                    frontDir = state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING);
+                } else {
+                    float yRot = signBlock.getYRotationDegrees(state);
+                    frontDir = Direction.fromYRot(yRot);
+                }
             }
 
             boolean isBackSide = (!frontHas && backHas);
