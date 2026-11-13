@@ -58,23 +58,26 @@ public class ItemCounterCommand {
     }
 
     private static int showHelp(FabricClientCommandSource source) {
-        source.sendFeedback(Component.literal("§6§l================ Item Counter (v1.5.7+26.x) ================"));
-        source.sendFeedback(Component.literal("§eBy §6Slowbag §7| §fItem & Entity Flow Counter for Minecraft 26.x"));
+        source.sendFeedback(Component.literal("§6§l================ Item Counter Commands & Guide ================"));
+        source.sendFeedback(Component.literal("§fReal-time item and entity flow counter for Minecraft 26.x"));
         source.sendFeedback(Component.literal(""));
         source.sendFeedback(Component.literal("§e§lCommands: §7(Click any command below to execute)"));
-        source.sendFeedback(createCommandRow("/itemcounter help", "Display this commands & usage guide", "§eClick to run /itemcounter help"));
-        source.sendFeedback(createCommandRow("/itemcounter gui", "Open full Settings GUI (Hologram, HUD, Prices, Signs)", "§aClick to open GUI"));
-        source.sendFeedback(createCommandRow("/itemcounter hud", "Click & drag live watch sidebar box on screen", "§aClick to move HUD"));
-        source.sendFeedback(createCommandRow("/itemcounter list", "List active sign counters, status & items passed", "§aClick to list active counters"));
-        source.sendFeedback(createCommandRow("/itemcounter reset", "Restart / reset nearest counter sign test", "§aClick to reset closest counter"));
-        source.sendFeedback(createCommandRow("/itemcounter clear", "Clear all registered counters from memory", "§cClick to clear counters"));
+        source.sendFeedback(createCommandRow("/itemcounter help", "Display this help guide with all functions and commands", "§eClick to run /itemcounter help"));
+        source.sendFeedback(createCommandRow("/itemcounter gui", "Open full Settings GUI (Holograms, HUD, Prices, Filters, Privacy)", "§aClick to open GUI"));
+        source.sendFeedback(createCommandRow("/itemcounter hud", "Drag and reposition the live watch sidebar box on your screen", "§aClick to move HUD"));
+        source.sendFeedback(createCommandRow("/itemcounter list", "List all active counter signs, status, items counted & rates", "§aClick to list active counters"));
+        source.sendFeedback(createCommandRow("/itemcounter reset", "Instantly restart the test on the nearest counter sign", "§aClick to reset nearest counter"));
+        source.sendFeedback(createCommandRow("/itemcounter clear", "Clear all active counter signs from tracking memory", "§cClick to clear counters"));
         source.sendFeedback(Component.literal(""));
-        source.sendFeedback(Component.literal("§e§lHow It Works:"));
-        source.sendFeedback(Component.literal(" §b1. §fPlace a sign and write §bcounter §fon it (front or back)."));
-        source.sendFeedback(Component.literal(" §b2. §fItems floating directly in front of the sign are tracked."));
-        source.sendFeedback(Component.literal(" §b3. §fRight-click sign to reset test; Shift+Right-click to cycle duration."));
-        source.sendFeedback(Component.literal(" §b4. §fOpen §b/itemcounter gui §fto customize 3D hologram size/height, prices & privacy."));
-        source.sendFeedback(Component.literal("§6§l======================================================"));
+        source.sendFeedback(Component.literal("§e§lFunctions & How To Use:"));
+        source.sendFeedback(Component.literal(" §b• Sign Activation: §fPlace a sign and write §bcounter§f on it to activate it."));
+        source.sendFeedback(Component.literal(" §b• Flow Detection: §fOnly items moving directly in front of the sign face are counted."));
+        source.sendFeedback(Component.literal(" §b• Sign Controls: §fRight-click sign to restart test; §fShift+Right-click to change timer (10s, 30s, 60s, Live)."));
+        source.sendFeedback(Component.literal(" §b• 3D Hologram: §fDisplays floating text above sign with items passed, rates & value (height/size customizable in GUI)."));
+        source.sendFeedback(Component.literal(" §b• Sidebar HUD: §fLive watch display showing active farm rates in real-time. Move it using §b/itemcounter hud§f."));
+        source.sendFeedback(Component.literal(" §b• Pricing & Economy: §fSet item prices in §b/itemcounter gui §fto see hourly earnings & total value."));
+        source.sendFeedback(Component.literal(" §b• Coordinate Privacy: §fCoordinates are hidden by default in chat to prevent base/farm leaks."));
+        source.sendFeedback(Component.literal("§6§l=============================================================="));
         return 1;
     }
 
