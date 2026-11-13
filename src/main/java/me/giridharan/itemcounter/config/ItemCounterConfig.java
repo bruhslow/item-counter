@@ -17,7 +17,7 @@ public class ItemCounterConfig {
     private static ItemCounterConfig instance;
 
     // Countdown / Mode defaults
-    public int defaultTimerSeconds = 30; // 10, 30, 60 or custom seconds
+    public int defaultTimerSeconds = 60; // 0 = Live Rate, 60 = 60s (or custom seconds)
     public boolean showHologram = true;
     public boolean strictInFrontOnly = true;
 

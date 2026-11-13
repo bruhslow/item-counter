@@ -25,8 +25,6 @@ public class CounterSign {
 
     public enum Mode {
         LIVE(0, "Live Rate"),
-        SEC_10(10, "10s"),
-        SEC_30(30, "30s"),
         SEC_60(60, "60s");
 
         public final int durationSeconds;
@@ -45,9 +43,7 @@ public class CounterSign {
         public static Mode fromString(String str) {
             if (str == null) return LIVE;
             String lower = str.toLowerCase().trim();
-            if (lower.contains("10")) return SEC_10;
             if (lower.contains("60") || lower.contains("1m")) return SEC_60;
-            if (lower.contains("30")) return SEC_30;
             return LIVE;
         }
     }

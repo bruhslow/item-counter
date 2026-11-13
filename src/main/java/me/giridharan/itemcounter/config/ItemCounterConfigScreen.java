@@ -97,7 +97,7 @@ public class ItemCounterConfigScreen {
                         .setMin(0)
                         .setMax(3600)
                         .setSaveConsumer(val -> data.testDurationSeconds = Math.max(0, val))
-                        .setTooltip(Component.literal("Test countdown duration for this sign (0 = Live continuous feed, or 10, 30, 60s)."))
+                        .setTooltip(Component.literal("Test countdown duration for this sign (0 = Live continuous feed, or 60s)."))
                         .build());
 
                 generalSub.add(entryBuilder.startDoubleField(

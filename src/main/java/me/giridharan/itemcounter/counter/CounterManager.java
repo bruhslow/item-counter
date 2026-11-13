@@ -47,7 +47,7 @@ public class CounterManager {
         CounterSign existing = activeCounters.get(pos);
         if (existing != null) {
             if (isCrouching) {
-                // Cycle mode: 10s -> 30s -> 60s -> Live
+                // Cycle mode: Live Rate <-> 60s
                 existing.cycleMode(player);
             } else {
                 // Restart current test
@@ -215,10 +215,6 @@ public class CounterManager {
             if (parsedSeconds != null) {
                 if (parsedSeconds == 0) {
                     counter.setMode(CounterSign.Mode.LIVE);
-                } else if (parsedSeconds == 10) {
-                    counter.setMode(CounterSign.Mode.SEC_10);
-                } else if (parsedSeconds == 30) {
-                    counter.setMode(CounterSign.Mode.SEC_30);
                 } else if (parsedSeconds == 60) {
                     counter.setMode(CounterSign.Mode.SEC_60);
                 } else {
@@ -227,9 +223,7 @@ public class CounterManager {
                 signConfig.testDurationSeconds = parsedSeconds;
             } else {
                 int defSec = signConfig.testDurationSeconds;
-                if (defSec == 10) counter.setMode(CounterSign.Mode.SEC_10);
-                else if (defSec == 30) counter.setMode(CounterSign.Mode.SEC_30);
-                else if (defSec == 60) counter.setMode(CounterSign.Mode.SEC_60);
+                if (defSec == 60) counter.setMode(CounterSign.Mode.SEC_60);
                 else if (defSec <= 0) counter.setMode(CounterSign.Mode.LIVE);
                 else counter.setCustomDuration(defSec);
             }
