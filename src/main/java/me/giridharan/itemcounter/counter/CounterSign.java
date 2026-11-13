@@ -110,15 +110,20 @@ public class CounterSign {
     }
 
     public int getTargetDurationSeconds() {
+        ItemCounterConfig config = ItemCounterConfig.getInstance();
+        SignConfigData sc = config.getSignConfig(pos.getX(), pos.getY(), pos.getZ());
+        if (sc != null) {
+            return sc.testDurationSeconds;
+        }
         if (customDurationSeconds > 0) return customDurationSeconds;
         return mode.durationSeconds;
     }
 
     public String getDisplayName() {
-        if (customDurationSeconds > 0) {
-            return customDurationSeconds + "s";
-        }
-        return mode.displayName;
+        int sec = getTargetDurationSeconds();
+        if (sec <= 0) return "Live Rate";
+        if (sec % 60 == 0) return (sec / 60) + "m";
+        return sec + "s";
     }
 
     public String getSignCustomName() {
@@ -137,6 +142,12 @@ public class CounterSign {
     public void cycleMode(Player player) {
         this.customDurationSeconds = 0;
         this.mode = this.mode.next();
+        ItemCounterConfig config = ItemCounterConfig.getInstance();
+        SignConfigData sc = config.getSignConfig(pos.getX(), pos.getY(), pos.getZ());
+        if (sc != null) {
+            sc.testDurationSeconds = this.mode.durationSeconds;
+            config.save();
+        }
         restart();
         if (player != null) {
             player.playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, 0.8f, 1.2f);

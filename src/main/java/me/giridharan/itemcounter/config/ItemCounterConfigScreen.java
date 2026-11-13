@@ -31,7 +31,7 @@ public class ItemCounterConfigScreen {
         ConfigCategory signsCat = builder.getOrCreateCategory(Component.literal("Sign Boards & Farms"));
 
         signsCat.addEntry(entryBuilder.startTextDescription(
-                Component.literal("§6✦ Select any sign board below to tweak all of its settings in one place: rename it, set its custom price, configure its 3D hologram (height/scale/money), and choose if its live view feed shows on the outer GUI!")
+                Component.literal("§6✦ Select any sign board below to tweak all settings for that farm in one place: rename it, set its duration, price per item, 3D hologram (height/scale/money), outer GUI feed, and item filter!")
         ).build());
 
         if (config.signConfigs.isEmpty()) {
@@ -45,26 +45,29 @@ public class ItemCounterConfigScreen {
                         Component.literal("§6✦ " + data.getDisplayName() + locTag)
                 );
 
-                // 1. Rename
+                // 1. Rename Sign Board
                 signSub.add(entryBuilder.startStrField(
                                 Component.literal("Sign Board Name"),
                                 data.customName
                         )
                         .setDefaultValue(data.getDisplayName(true))
                         .setSaveConsumer(val -> data.customName = (val != null ? val.trim() : ""))
-                        .setTooltip(Component.literal("Rename this sign board (e.g. Iron Farm, Gold Pipeline, Mob Drop A)."))
+                        .setTooltip(Component.literal("Rename this sign board (e.g. Twisting Vine, Iron Farm, Gold Pipeline)."))
                         .build());
 
-                // 2. Pricing System per Sign Board
-                signSub.add(entryBuilder.startBooleanToggle(
-                                Component.literal("Enable Sign Custom Price"),
-                                data.useSignCustomPrice
+                // 2. Test Duration for this specific sign board
+                signSub.add(entryBuilder.startIntField(
+                                Component.literal("Test Duration Seconds (0 = Live Continuous)"),
+                                data.testDurationSeconds
                         )
-                        .setDefaultValue(true)
-                        .setSaveConsumer(val -> data.useSignCustomPrice = val)
-                        .setTooltip(Component.literal("YES = Use the custom price below for all items passing this sign. NO = Fallback to global item prices."))
+                        .setDefaultValue(30)
+                        .setMin(0)
+                        .setMax(3600)
+                        .setSaveConsumer(val -> data.testDurationSeconds = Math.max(0, val))
+                        .setTooltip(Component.literal("Test countdown duration for this sign (e.g. 10, 30, 60s, or 0 for live continuous feed)."))
                         .build());
 
+                // 3. Pricing System per Sign Board
                 signSub.add(entryBuilder.startDoubleField(
                                 Component.literal("Price Per Item / Entity (" + config.currencySymbol + ")"),
                                 data.pricePerItem
@@ -72,11 +75,14 @@ public class ItemCounterConfigScreen {
                         .setDefaultValue(10.0)
                         .setMin(0.0)
                         .setMax(1000000.0)
-                        .setSaveConsumer(val -> data.pricePerItem = Math.max(0.0, val))
+                        .setSaveConsumer(val -> {
+                            data.pricePerItem = Math.max(0.0, val);
+                            data.useSignCustomPrice = true;
+                        })
                         .setTooltip(Component.literal("Dollar/economy value earned for each item or entity counted at this specific sign board."))
                         .build());
 
-                // 3. Live View Feed / Outer GUI (Sidebar HUD)
+                // 4. Live View Feed / Outer GUI (Sidebar HUD)
                 signSub.add(entryBuilder.startBooleanToggle(
                                 Component.literal("Show on Outer GUI (Sidebar HUD)"),
                                 data.showInHud
@@ -95,7 +101,7 @@ public class ItemCounterConfigScreen {
                         .setTooltip(Component.literal("YES = Display calculated total earnings and per-minute rate on the outer GUI. NO = Count and speed only."))
                         .build());
 
-                // 4. 3D In-World Hologram Setup
+                // 5. 3D In-World Hologram Setup
                 signSub.add(entryBuilder.startBooleanToggle(
                                 Component.literal("Enable 3D Hologram for this Sign"),
                                 data.showHologram
@@ -136,28 +142,17 @@ public class ItemCounterConfigScreen {
                         .setTooltip(Component.literal("YES = Show item count AND calculated money generated. NO = Show ONLY items count & flow rate."))
                         .build());
 
-                // 5. Item Filter & Timer
+                // 6. Item Filter
                 signSub.add(entryBuilder.startStrField(
-                                Component.literal("Filter Items (e.g. iron_ingot)"),
+                                Component.literal("Filter Items (e.g. twisting_vines)"),
                                 data.itemFilter
                         )
                         .setDefaultValue("")
                         .setSaveConsumer(val -> data.itemFilter = (val != null ? val.trim() : ""))
-                        .setTooltip(Component.literal("Comma-separated item IDs to count at this sign (e.g. iron_ingot, poppy). Leave blank for ALL items."))
+                        .setTooltip(Component.literal("Comma-separated item IDs to count at this sign (e.g. twisting_vines, iron_ingot). Leave blank for ALL items."))
                         .build());
 
-                signSub.add(entryBuilder.startIntField(
-                                Component.literal("Test Duration Seconds (0 = Live)"),
-                                data.testDurationSeconds
-                        )
-                        .setDefaultValue(30)
-                        .setMin(0)
-                        .setMax(3600)
-                        .setSaveConsumer(val -> data.testDurationSeconds = Math.max(0, val))
-                        .setTooltip(Component.literal("Default test duration for this sign (e.g. 10, 30, 60s, or 0 for continuous live feed)."))
-                        .build());
-
-                // 6. Coordinates Display
+                // 7. Coordinates Display
                 signSub.add(entryBuilder.startTextDescription(
                         Component.literal(config.showCoordinatesInChat ? ("§7World Position: §eX=" + data.x + ", Y=" + data.y + ", Z=" + data.z) : "§8[Location Coordinates Hidden for Privacy]")
                 ).build());
@@ -193,8 +188,8 @@ public class ItemCounterConfigScreen {
 
         signsCat.addEntry(addSub.build());
 
-        // ==================== Category 2: Global Settings & Privacy ====================
-        ConfigCategory general = builder.getOrCreateCategory(Component.literal("Global & Privacy"));
+        // ==================== Category 2: General & Privacy ====================
+        ConfigCategory general = builder.getOrCreateCategory(Component.literal("General & Privacy"));
 
         // Tracking variable for 2-step confirmation when enabling coordinates
         final boolean[] requestedShowCoords = new boolean[]{ config.showCoordinatesInChat };
@@ -270,41 +265,6 @@ public class ItemCounterConfigScreen {
                 Component.literal("§e💡 Move Sidebar: §fType §b/itemcounter hud §fin chat to click and drag the sidebar anywhere with your mouse!")
         ).build());
 
-        // ==================== Category 3: Fallback Item Prices ====================
-        ConfigCategory priceCat = builder.getOrCreateCategory(Component.literal("Global Item Prices"));
-
-        priceCat.addEntry(entryBuilder.startTextDescription(
-                Component.literal("§eGlobal fallback prices per item. Signs will use these if 'Enable Sign Custom Price' is turned OFF on that sign board.")
-        ).build());
-
-        priceCat.addEntry(entryBuilder.startDoubleField(
-                        Component.literal("Default Item Price (Fallback)"),
-                        config.defaultItemPrice
-                )
-                .setDefaultValue(1.0)
-                .setMin(0.0)
-                .setMax(100000.0)
-                .setSaveConsumer(val -> config.defaultItemPrice = Math.max(0.0, val))
-                .setTooltip(Component.literal("Price applied to any item without a specific price configured."))
-                .build());
-
-        addPriceField(priceCat, entryBuilder, config, "Iron Ingot", "iron_ingot", 10.0);
-        addPriceField(priceCat, entryBuilder, config, "Gold Ingot", "gold_ingot", 25.0);
-        addPriceField(priceCat, entryBuilder, config, "Diamond", "diamond", 100.0);
-        addPriceField(priceCat, entryBuilder, config, "Emerald", "emerald", 50.0);
-        addPriceField(priceCat, entryBuilder, config, "Netherite Ingot", "netherite_ingot", 500.0);
-        addPriceField(priceCat, entryBuilder, config, "Copper Ingot", "copper_ingot", 2.0);
-        addPriceField(priceCat, entryBuilder, config, "Redstone", "redstone", 3.0);
-        addPriceField(priceCat, entryBuilder, config, "Lapis Lazuli", "lapis_lazuli", 4.0);
-        addPriceField(priceCat, entryBuilder, config, "Bamboo", "bamboo", 0.5);
-        addPriceField(priceCat, entryBuilder, config, "Sugar Cane", "sugar_cane", 1.0);
-        addPriceField(priceCat, entryBuilder, config, "Slime Ball", "slime_ball", 5.0);
-        addPriceField(priceCat, entryBuilder, config, "Gunpowder", "gunpowder", 4.0);
-        addPriceField(priceCat, entryBuilder, config, "Rotten Flesh", "rotten_flesh", 1.0);
-        addPriceField(priceCat, entryBuilder, config, "Bone", "bone", 2.0);
-        addPriceField(priceCat, entryBuilder, config, "String", "string", 2.0);
-        addPriceField(priceCat, entryBuilder, config, "Ender Pearl", "ender_pearl", 15.0);
-
         // Saving logic with 2-step confirmation when enabling coordinates
         builder.setSavingRunnable(() -> {
             boolean wasEnabled = config.showCoordinatesInChat;
@@ -324,17 +284,5 @@ public class ItemCounterConfigScreen {
         });
 
         return builder.build();
-    }
-
-    private static void addPriceField(ConfigCategory cat, ConfigEntryBuilder builder, ItemCounterConfig config, String title, String itemId, double defPrice) {
-        cat.addEntry(builder.startDoubleField(
-                        Component.literal(title + " (" + config.currencySymbol + ")"),
-                        config.getItemPrice(itemId)
-                )
-                .setDefaultValue(defPrice)
-                .setMin(0.0)
-                .setMax(1000000.0)
-                .setSaveConsumer(val -> config.setItemPrice(itemId, Math.max(0.0, val)))
-                .build());
     }
 }
