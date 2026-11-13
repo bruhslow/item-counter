@@ -8,9 +8,13 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.SignBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -18,6 +22,8 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class CounterSign {
 
@@ -300,7 +306,7 @@ public class CounterSign {
                 continue;
             }
 
-            int currentCount = Math.max(1, itemEntity.getItem().getCount());
+            int currentCount = getEffectiveItemCount(itemEntity);
             Identifier id = BuiltInRegistries.ITEM.getKey(itemEntity.getItem().getItem());
             String rawId = id.getPath();
 
@@ -338,6 +344,11 @@ public class CounterSign {
         }
 
         justRestarted = false;
+
+        // Periodically purge despawned or collected entities from memory
+        if (countedEntityItemCounts.size() > 500) {
+            countedEntityItemCounts.keySet().removeIf(id -> level.getEntity(id) == null);
+        }
 
         // 3. Check timer expiration for timed modes
         int targetSeconds = getTargetDurationSeconds();
@@ -446,5 +457,189 @@ public class CounterSign {
 
     public boolean isFinished() {
         return isFinished;
+    }
+
+    // ==========================================
+    // Stacked / Grouped Item Support (up to 6400+)
+    // ==========================================
+
+    private static final Pattern X_PATTERN = Pattern.compile("(?i)(?:\\bx\\s*([0-9]+(?:,[0-9]{3})*(?:\\.[0-9]+)?\\s*[kKmM]?)\\b|\\b([0-9]+(?:,[0-9]{3})*(?:\\.[0-9]+)?\\s*[kKmM]?)\\s*x\\b)");
+    private static final Pattern ENCLOSED_PATTERN = Pattern.compile("[\\(\\[\\{]\\s*(?:x\\s*)?([0-9]+(?:,[0-9]{3})*(?:\\.[0-9]+)?\\s*[kKmM]?)(?:\\s*x)?\\s*[\\)\\]\\}]", Pattern.CASE_INSENSITIVE);
+    private static final Pattern SEPARATOR_PATTERN = Pattern.compile("[-:×*]\\s*([0-9]+(?:,[0-9]{3})*(?:\\.[0-9]+)?\\s*[kKmM]?)\\b");
+    private static final Pattern SUFFIX_PATTERN = Pattern.compile("\\b([0-9]+(?:\\.[0-9]+)?)\\s*([kKmM])\\b");
+    private static final Pattern LEADING_NUM_PATTERN = Pattern.compile("^\\s*([0-9]+(?:,[0-9]{3})*)\\s+");
+    private static final Pattern LARGE_NUM_PATTERN = Pattern.compile("\\b([0-9]+(?:,[0-9]{3})*)\\b");
+
+    public static int getEffectiveItemCount(ItemEntity itemEntity) {
+        if (itemEntity == null) return 1;
+
+        int vanillaCount = Math.max(1, itemEntity.getItem().getCount());
+        int detectedCount = 0;
+
+        // 1. Check entity custom name (RoseStacker, WildStacker, StackMob, etc.)
+        Component customNameComp = itemEntity.getCustomName();
+        if (customNameComp != null) {
+            String text = customNameComp.getString();
+            int parsed = parseCountFromText(text);
+            if (parsed > detectedCount) {
+                detectedCount = parsed;
+            }
+        }
+
+        // 2. Check entity display name
+        Component displayNameComp = itemEntity.getDisplayName();
+        if (displayNameComp != null) {
+            String text = displayNameComp.getString();
+            int parsed = parseCountFromText(text);
+            if (parsed > detectedCount) {
+                detectedCount = parsed;
+            }
+        }
+
+        // 3. Check item hover name / custom name on the ItemStack
+        ItemStack stack = itemEntity.getItem();
+        if (stack != null && !stack.isEmpty()) {
+            Component hoverName = stack.getHoverName();
+            if (hoverName != null) {
+                String text = hoverName.getString();
+                int parsed = parseCountFromText(text);
+                if (parsed > detectedCount) {
+                    detectedCount = parsed;
+                }
+            }
+
+            // 4. Check ItemStack CustomData (NBT tags)
+            try {
+                CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
+                if (customData != null) {
+                    CompoundTag tag = customData.copyTag();
+                    int nbtCount = parseCountFromTag(tag);
+                    if (nbtCount > detectedCount) {
+                        detectedCount = nbtCount;
+                    }
+                }
+            } catch (Throwable ignored) {}
+        }
+
+        // 5. Check Entity scoreboard tags (e.g. "stack:6400", "amount:3400")
+        try {
+            Set<String> tags = itemEntity.entityTags();
+            if (tags != null) {
+                for (String tagStr : tags) {
+                    int parsed = parseCountFromTagString(tagStr);
+                    if (parsed > detectedCount) {
+                        detectedCount = parsed;
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+
+        return Math.max(vanillaCount, detectedCount);
+    }
+
+    private static int parseNumberToken(String token) {
+        if (token == null) return 0;
+        String s = token.replace(",", "").trim().toLowerCase();
+        try {
+            if (s.endsWith("k")) {
+                double val = Double.parseDouble(s.substring(0, s.length() - 1).trim());
+                return (int) Math.round(val * 1000.0);
+            }
+            if (s.endsWith("m")) {
+                double val = Double.parseDouble(s.substring(0, s.length() - 1).trim());
+                return (int) Math.round(val * 1000000.0);
+            }
+            double val = Double.parseDouble(s);
+            return (int) Math.round(val);
+        } catch (Throwable t) {
+            return 0;
+        }
+    }
+
+    public static int parseCountFromText(String text) {
+        if (text == null || text.isBlank()) return 0;
+        String cleaned = text.replaceAll("[§&][0-9a-fk-orA-FK-OR]", " ").trim();
+        if (cleaned.isEmpty()) return 0;
+
+        Matcher m = X_PATTERN.matcher(cleaned);
+        if (m.find()) {
+            String token = m.group(1) != null ? m.group(1) : m.group(2);
+            int val = parseNumberToken(token);
+            if (val > 0) return val;
+        }
+
+        m = ENCLOSED_PATTERN.matcher(cleaned);
+        if (m.find()) {
+            int val = parseNumberToken(m.group(1));
+            if (val > 0) return val;
+        }
+
+        m = SEPARATOR_PATTERN.matcher(cleaned);
+        if (m.find()) {
+            int val = parseNumberToken(m.group(1));
+            if (val > 0) return val;
+        }
+
+        m = SUFFIX_PATTERN.matcher(cleaned);
+        if (m.find()) {
+            int val = parseNumberToken(m.group(1) + m.group(2));
+            if (val > 0) return val;
+        }
+
+        m = LEADING_NUM_PATTERN.matcher(cleaned);
+        if (m.find()) {
+            int val = parseNumberToken(m.group(1));
+            if (val > 1) return val;
+        }
+
+        m = LARGE_NUM_PATTERN.matcher(cleaned);
+        while (m.find()) {
+            int val = parseNumberToken(m.group(1));
+            if (val > 64) return val;
+        }
+
+        return 0;
+    }
+
+    private static int parseCountFromTag(CompoundTag tag) {
+        if (tag == null) return 0;
+        String[] commonKeys = {
+            "amount", "stack_amount", "stack_size", "count", "stacked",
+            "quantity", "total", "size", "item_count", "merged_count"
+        };
+        for (String key : commonKeys) {
+            if (tag.contains(key)) {
+                try {
+                    int val = tag.getIntOr(key, 0);
+                    if (val > 1) return val;
+                } catch (Throwable ignored) {}
+            }
+        }
+        for (String key : tag.keySet()) {
+            String lower = key.toLowerCase();
+            if (lower.contains("stack") || lower.contains("merge")) {
+                try {
+                    CompoundTag sub = tag.getCompoundOrEmpty(key);
+                    if (!sub.isEmpty()) {
+                        int subCount = parseCountFromTag(sub);
+                        if (subCount > 1) return subCount;
+                    }
+                } catch (Throwable ignored) {}
+            }
+        }
+        return 0;
+    }
+
+    private static int parseCountFromTagString(String tagStr) {
+        if (tagStr == null || tagStr.isBlank()) return 0;
+        String lower = tagStr.toLowerCase().trim();
+        if (lower.contains(":") || lower.contains("=")) {
+            String[] parts = lower.split("[:=]", 2);
+            if (parts.length == 2) {
+                int parsed = parseCountFromText(parts[1].trim());
+                if (parsed > 0) return parsed;
+            }
+        }
+        return parseCountFromText(lower);
     }
 }
