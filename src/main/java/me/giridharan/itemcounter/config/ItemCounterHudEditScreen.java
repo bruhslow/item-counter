@@ -74,9 +74,9 @@ public class ItemCounterHudEditScreen extends Screen {
         // Semi-transparent backdrop overlay
         graphics.fill(0, 0, this.width, this.height, 0x60000000);
 
-        // Header instructions
-        graphics.centeredText(this.font, Component.literal("§6§l⚡ Item Counter - Move Live Watch Sidebar HUD"), this.width / 2, 12, 0xFFFFFF);
-        graphics.centeredText(this.font, Component.literal("§7Click and drag the box to place it anywhere on screen. Click Save when finished."), this.width / 2, 24, 0xAAAAAA);
+        // Header instructions (32-bit ARGB with full alpha!)
+        graphics.centeredText(this.font, Component.literal("§6§l⚡ Item Counter - Move Live Watch Sidebar HUD"), this.width / 2, 12, 0xFFFFFFFF);
+        graphics.centeredText(this.font, Component.literal("§7Click and drag the box to place it anywhere on screen. Click Save when finished."), this.width / 2, 24, 0xFFAAAAAA);
 
         // Render the HUD Box preview
         renderHudBox(graphics, mouseX, mouseY);
@@ -133,21 +133,21 @@ public class ItemCounterHudEditScreen extends Screen {
         String headerTitle = "§6§l⚡ " + truncate(signName, 16) + " " + status;
         String passedStr = "§fEntity Passed: §e§l" + count + " items §7(~" + String.format("%.0f", rateMin) + "/m)";
 
-        graphics.text(this.font, Component.literal(headerTitle), hudX + 5, hudY + 4, 0xFFFFFF, true);
-        graphics.text(this.font, Component.literal(passedStr), hudX + 5, hudY + 15, 0xFFFFFF, true);
+        graphics.text(this.font, Component.literal(headerTitle), hudX + 5, hudY + 4, 0xFFFFFFFF, true);
+        graphics.text(this.font, Component.literal(passedStr), hudX + 5, hudY + 15, 0xFFFFFFFF, true);
 
         int textY = hudY + 26;
         if (config.showMoneyInHud) {
             String moneyStr = "§aMoney Made: §e§l" + config.currencySymbol + String.format("%,.0f", money);
-            graphics.text(this.font, Component.literal(moneyStr), hudX + 5, textY, 0xFFFFFF, true);
+            graphics.text(this.font, Component.literal(moneyStr), hudX + 5, textY, 0xFFFFFFFF, true);
             textY += 11;
         }
 
-        graphics.text(this.font, Component.literal(timerStr), hudX + 5, textY, 0xFFFFFF, true);
+        graphics.text(this.font, Component.literal(timerStr), hudX + 5, textY, 0xFFFFFFFF, true);
 
         // Drag handle indicator
         String handleText = isDragging ? "§a[DRAGGING]" : "§e[✥ MOVE]";
-        graphics.text(this.font, Component.literal(handleText), hudX + cardW - this.font.width(handleText) - 4, hudY + 4, 0xFFFFFF, false);
+        graphics.text(this.font, Component.literal(handleText), hudX + cardW - this.font.width(handleText) - 4, hudY + 4, 0xFFFFFFFF, false);
     }
 
     private static String truncate(String text, int maxChars) {
@@ -158,6 +158,7 @@ public class ItemCounterHudEditScreen extends Screen {
 
     private CounterSign getClosestActiveCounter() {
         if (this.minecraft.player == null) return null;
+
         Map<BlockPos, CounterSign> counters = CounterManager.getActiveCounters();
         if (counters.isEmpty()) return null;
 

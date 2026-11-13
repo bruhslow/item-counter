@@ -65,7 +65,7 @@ public class ItemCounterConfig {
         return instance;
     }
 
-    public void initDefaultPrices() {
+    private void initDefaultPrices() {
         if (itemPrices.isEmpty()) {
             itemPrices.put("iron_ingot", 10.0);
             itemPrices.put("gold_ingot", 25.0);
@@ -92,8 +92,7 @@ public class ItemCounterConfig {
         if (clean.contains(":")) {
             clean = clean.substring(clean.indexOf(":") + 1);
         }
-        Double price = itemPrices.get(clean);
-        return price != null ? price : defaultItemPrice;
+        return itemPrices.getOrDefault(clean, defaultItemPrice);
     }
 
     public void setItemPrice(String rawItemId, double price) {
@@ -111,16 +110,42 @@ public class ItemCounterConfig {
         if (client.getCurrentServer() != null && client.getCurrentServer().ip != null && !client.getCurrentServer().ip.isBlank()) {
             return client.getCurrentServer().ip.toLowerCase().trim();
         }
-        if (client.getSingleplayerServer() != null) {
+        if (client.getConnection() != null && client.getConnection().getServerData() != null && client.getConnection().getServerData().ip != null && !client.getConnection().getServerData().ip.isBlank()) {
+            return client.getConnection().getServerData().ip.toLowerCase().trim();
+        }
+        if (client.isLocalServer() || client.hasSingleplayerServer()) {
             try {
-                String levelName = client.getSingleplayerServer().getWorldData().getLevelName();
-                if (levelName != null && !levelName.isBlank()) {
-                    return "sp:" + levelName.trim();
+                if (client.getSingleplayerServer() != null && client.getSingleplayerServer().getWorldData() != null) {
+                    String levelName = client.getSingleplayerServer().getWorldData().getLevelName();
+                    if (levelName != null && !levelName.isBlank()) {
+                        return "sp:" + levelName.trim().toLowerCase();
+                    }
                 }
             } catch (Throwable ignored) {}
             return "sp:singleplayer";
         }
         return "global";
+    }
+
+    public static boolean isSameServer(String id1, String id2) {
+        if (id1 == null || id2 == null) return false;
+        String a = id1.toLowerCase().trim();
+        String b = id2.toLowerCase().trim();
+        if (a.equals(b)) return true;
+
+        // If either is a singleplayer world (e.g. sp:worldName), require exact match
+        if (a.startsWith("sp:") || b.startsWith("sp:")) {
+            return a.equals(b);
+        }
+
+        // Strip port only if host:port has a numeric port
+        if (a.matches(".+:\\d+")) a = a.substring(0, a.lastIndexOf(':'));
+        if (b.matches(".+:\\d+")) b = b.substring(0, b.lastIndexOf(':'));
+        if (a.equals(b)) return true;
+
+        // Domain / subdomain matching (e.g. play.priyosmp.com and priyosmp.com)
+        if (a.endsWith("." + b) || b.endsWith("." + a)) return true;
+        return false;
     }
 
     public static String makeSignKey(String serverId, int x, int y, int z) {
@@ -143,7 +168,7 @@ public class ItemCounterConfig {
         String legacyKey = x + "," + y + "," + z;
         SignConfigData legacy = signConfigs.get(legacyKey);
         if (legacy != null) {
-            if (legacy.serverId == null || legacy.serverId.isBlank() || legacy.serverId.equalsIgnoreCase(currentWorld)) {
+            if (legacy.serverId == null || legacy.serverId.isBlank() || isSameServer(legacy.serverId, currentWorld)) {
                 legacy.serverId = currentWorld;
                 signConfigs.remove(legacyKey);
                 signConfigs.put(scopedKey, legacy);
@@ -167,7 +192,7 @@ public class ItemCounterConfig {
 
         String legacyKey = x + "," + y + "," + z;
         SignConfigData legacy = signConfigs.get(legacyKey);
-        if (legacy != null && (legacy.serverId == null || legacy.serverId.isBlank() || legacy.serverId.equalsIgnoreCase(currentWorld))) {
+        if (legacy != null && (legacy.serverId == null || legacy.serverId.isBlank() || isSameServer(legacy.serverId, currentWorld))) {
             return legacy;
         }
         return null;
@@ -198,11 +223,11 @@ public class ItemCounterConfig {
             SignConfigData sc = entry.getValue();
             if (sc == null) continue;
             if (sc.serverId != null && !sc.serverId.isBlank()) {
-                if (sc.serverId.equalsIgnoreCase(currentWorld)) {
+                if (isSameServer(sc.serverId, currentWorld)) {
                     result.put(entry.getKey(), sc);
                 }
             } else {
-                // If legacy entry has no serverId, only show in global or if matching prefix
+                // If legacy entry has no serverId, show if global or prefix matches
                 if (currentWorld.equalsIgnoreCase("global") || entry.getKey().startsWith(currentWorld + "@")) {
                     result.put(entry.getKey(), sc);
                 }

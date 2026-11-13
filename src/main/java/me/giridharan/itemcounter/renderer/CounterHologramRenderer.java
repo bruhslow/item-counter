@@ -46,6 +46,7 @@ public class CounterHologramRenderer {
 
             Vec3 camPos = camera.pos;
 
+            // In-world 3D floating holograms directly above each sign block
             for (Map.Entry<BlockPos, CounterSign> entry : counters.entrySet()) {
                 BlockPos pos = entry.getKey();
                 CounterSign sign = entry.getValue();

@@ -1,11 +1,13 @@
 package me.giridharan.itemcounter.renderer;
 
+import me.giridharan.itemcounter.ItemCounterMod;
 import me.giridharan.itemcounter.config.ItemCounterConfig;
 import me.giridharan.itemcounter.config.ItemCounterHudEditScreen;
 import me.giridharan.itemcounter.config.SignConfigData;
 import me.giridharan.itemcounter.counter.CounterManager;
 import me.giridharan.itemcounter.counter.CounterSign;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -21,12 +23,19 @@ import java.util.Map;
 public class ItemCounterHudRenderer {
 
     public static final int CARD_WIDTH = 175;
+    public static volatile long last2DHudRenderTime = 0;
+    private static boolean loggedFirstRender = false;
 
     public static void register() {
-        HudElementRegistry.addLast(
-                Identifier.fromNamespaceAndPath("itemcounter", "live_watch"),
-                ItemCounterHudRenderer::render
-        );
+        try {
+            HudElementRegistry.attachElementBefore(
+                    VanillaHudElements.CHAT,
+                    Identifier.fromNamespaceAndPath("itemcounter", "live_watch"),
+                    ItemCounterHudRenderer::render
+            );
+        } catch (Throwable t) {
+            ItemCounterMod.LOGGER.error("[Item Counter] Failed to register Live Watch HUD with Fabric API", t);
+        }
     }
 
     private static void render(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
@@ -43,6 +52,13 @@ public class ItemCounterHudRenderer {
         // Skip normal HUD rendering while user is dragging/editing the HUD box position
         if (client.gui.screen() instanceof ItemCounterHudEditScreen) {
             return;
+        }
+
+        last2DHudRenderTime = System.currentTimeMillis();
+
+        if (!loggedFirstRender) {
+            loggedFirstRender = true;
+            ItemCounterMod.LOGGER.info("[Item Counter] Live Watch HUD render active and rendering frames.");
         }
 
         BlockPos playerPos = client.player.blockPosition();
@@ -76,26 +92,26 @@ public class ItemCounterHudRenderer {
         Map<String, SignConfigData> serverSigns = config.getSignsForCurrentServer();
         for (SignConfigData sc : serverSigns.values()) {
             if (!sc.showInHud) continue;
-                BlockPos pos = new BlockPos(sc.x, sc.y, sc.z);
-                if (counters.containsKey(pos)) continue; // Already handled above
+            BlockPos pos = new BlockPos(sc.x, sc.y, sc.z);
+            if (counters.containsKey(pos)) continue; // Already handled above
 
-                // Skip if chunk is loaded and block is air
-                if (client.level.isLoaded(pos)) {
-                    net.minecraft.world.level.block.state.BlockState state = client.level.getBlockState(pos);
-                    if (state.isAir() || !(state.getBlock() instanceof net.minecraft.world.level.block.SignBlock)) {
-                        continue;
-                    }
-                }
-
-                if (pos.distSqr(playerPos) <= 192 * 192) {
-                    CounterSign sign = counters.computeIfAbsent(pos, p -> {
-                        CounterSign cs = new CounterSign(p);
-                        cs.setCustomDuration(sc.testDurationSeconds);
-                        return cs;
-                    });
-                    enabledSigns.add(sign);
+            // Skip if chunk is loaded and block is air
+            if (client.level.isLoaded(pos)) {
+                net.minecraft.world.level.block.state.BlockState state = client.level.getBlockState(pos);
+                if (state.isAir() || !(state.getBlock() instanceof net.minecraft.world.level.block.SignBlock)) {
+                    continue;
                 }
             }
+
+            if (pos.distSqr(playerPos) <= 192 * 192) {
+                CounterSign sign = counters.computeIfAbsent(pos, p -> {
+                    CounterSign cs = new CounterSign(p);
+                    cs.setCustomDuration(sc.testDurationSeconds);
+                    return cs;
+                });
+                enabledSigns.add(sign);
+            }
+        }
 
         if (enabledSigns.isEmpty()) {
             return;
@@ -149,7 +165,7 @@ public class ItemCounterHudRenderer {
                         headerTitle += " §e⏳ [" + sign.getDisplayName() + "]";
                     }
                 }
-                graphics.text(font, Component.literal(headerTitle), hudX + 5, textY, 0xFFFFFF, true);
+                graphics.text(font, Component.literal(headerTitle), hudX + 5, textY, 0xFFFFFFFF, true);
                 textY += 11;
             }
 
@@ -161,7 +177,7 @@ public class ItemCounterHudRenderer {
                     String rateText = (total == 0) ? " §7(Waiting...)" : (" §7(~" + String.format("%.0f", sign.getRatePerMinute()) + "/m)");
                     passedStr += rateText;
                 }
-                graphics.text(font, Component.literal(passedStr), hudX + 5, textY, 0xFFFFFF, true);
+                graphics.text(font, Component.literal(passedStr), hudX + 5, textY, 0xFFFFFFFF, true);
                 textY += 11;
             }
 
@@ -173,7 +189,7 @@ public class ItemCounterHudRenderer {
                     double moneyRateMin = sign.getMoneyRatePerMinute();
                     moneyStr += " §7(§a~" + config.currencySymbol + String.format("%,.0f", moneyRateMin) + "/m§7)";
                 }
-                graphics.text(font, Component.literal(moneyStr), hudX + 5, textY, 0xFFFFFF, true);
+                graphics.text(font, Component.literal(moneyStr), hudX + 5, textY, 0xFFFFFFFF, true);
                 textY += 11;
             }
 
@@ -187,7 +203,7 @@ public class ItemCounterHudRenderer {
                 } else {
                     timerStr = "§a⏳ " + sign.getRemainingSeconds() + "s remaining";
                 }
-                graphics.text(font, Component.literal(timerStr), hudX + 5, textY, 0xFFFFFF, true);
+                graphics.text(font, Component.literal(timerStr), hudX + 5, textY, 0xFFFFFFFF, true);
                 textY += 11;
             }
 
