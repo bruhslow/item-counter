@@ -5,6 +5,7 @@ import me.giridharan.itemcounter.ItemCounterMod;
 import me.giridharan.itemcounter.command.ItemCounterCommand;
 import me.giridharan.itemcounter.config.ItemCounterConfig;
 import me.giridharan.itemcounter.config.ItemCounterConfigScreen;
+import me.giridharan.itemcounter.config.SignConfigData;
 import me.giridharan.itemcounter.counter.CounterManager;
 import me.giridharan.itemcounter.counter.CounterSign;
 import me.giridharan.itemcounter.renderer.CounterHologramRenderer;
@@ -30,8 +31,15 @@ public class ItemCounterClientMod implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        // 1. Initialize configuration
+        // 1. Initialize configuration & preload classes
         ItemCounterConfig.getInstance();
+        try {
+            Class.forName(CounterSign.class.getName());
+            Class.forName(CounterSign.Mode.class.getName());
+            Class.forName(CounterSign.CountRecord.class.getName());
+            Class.forName(SignConfigData.class.getName());
+            Class.forName(ItemCounterConfigScreen.class.getName());
+        } catch (Throwable ignored) {}
 
         // 2. Register in-world 3D hologram renderer directly above counter signs
         CounterHologramRenderer.register();

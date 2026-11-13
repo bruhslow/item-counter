@@ -1,5 +1,6 @@
 package me.giridharan.itemcounter.counter;
 
+import me.giridharan.itemcounter.ItemCounterMod;
 import me.giridharan.itemcounter.config.ItemCounterConfig;
 import me.giridharan.itemcounter.config.SignConfigData;
 import net.minecraft.client.Minecraft;
@@ -98,14 +99,22 @@ public class CounterManager {
                 }
             }
 
-            counter.tick(level, player);
+            try {
+                counter.tick(level, player);
+            } catch (Throwable t) {
+                ItemCounterMod.LOGGER.error("[Item Counter] Error during counter tick at " + pos, t);
+            }
         }
 
         // 2. Periodic automatic detection of signs with "counter" text (every 20 ticks / 1 second)
         scanCooldown--;
         if (scanCooldown <= 0) {
             scanCooldown = 20;
-            scanNearbySigns(level, player.blockPosition());
+            try {
+                scanNearbySigns(level, player.blockPosition());
+            } catch (Throwable t) {
+                ItemCounterMod.LOGGER.error("[Item Counter] Error scanning nearby signs", t);
+            }
         }
     }
 
@@ -117,64 +126,75 @@ public class CounterManager {
         for (BlockPos pos : BlockPos.betweenClosed(min, max)) {
             if (activeCounters.containsKey(pos)) continue;
 
-            BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof SignBlockEntity sign) {
-                boolean frontHas = hasCounterText(sign.getFrontText());
-                boolean backHas = hasCounterText(sign.getBackText());
+            try {
+                BlockEntity be = level.getBlockEntity(pos);
+                if (be instanceof SignBlockEntity sign) {
+                    boolean frontHas = hasCounterText(sign.getFrontText());
+                    boolean backHas = hasCounterText(sign.getBackText());
 
-                if (frontHas || backHas) {
-                    CounterSign counter = createCounterFromSign(level, pos.immutable(), sign, frontHas, backHas);
-                    activeCounters.put(pos.immutable(), counter);
+                    if (frontHas || backHas) {
+                        CounterSign counter = createCounterFromSign(level, pos.immutable(), sign, frontHas, backHas);
+                        if (counter != null) {
+                            activeCounters.put(pos.immutable(), counter);
+                        }
+                    }
                 }
+            } catch (Throwable t) {
+                ItemCounterMod.LOGGER.error("[Item Counter] Error processing sign at " + pos, t);
             }
         }
     }
 
     private static CounterSign createCounterFromSign(Level level, BlockPos pos, SignBlockEntity sign, boolean frontHas, boolean backHas) {
-        CounterSign counter = new CounterSign(pos);
+        try {
+            CounterSign counter = new CounterSign(pos);
 
-        // Auto register / ensure config entry for this sign board
-        SignConfigData signConfig = ItemCounterConfig.getInstance().getOrCreateSignConfig(pos.getX(), pos.getY(), pos.getZ());
+            // Auto register / ensure config entry for this sign board
+            SignConfigData signConfig = ItemCounterConfig.getInstance().getOrCreateSignConfig(pos.getX(), pos.getY(), pos.getZ());
 
-        // Determine sign front facing
-        Direction frontDir = Direction.NORTH;
-        BlockState state = level.getBlockState(pos);
-        if (state.getBlock() instanceof SignBlock signBlock) {
-            float yRot = signBlock.getYRotationDegrees(state);
-            frontDir = Direction.fromYRot(yRot);
-        }
-
-        boolean isBackSide = (!frontHas && backHas);
-        counter.setFacing(frontDir, isBackSide);
-
-        // Parse optional duration (e.g. 10s, 30s, 60s, live, or custom seconds)
-        SignText targetText = isBackSide ? sign.getBackText() : sign.getFrontText();
-        String fullSignContent = getCombinedText(targetText);
-
-        Integer parsedSeconds = parseDurationSeconds(fullSignContent);
-        if (parsedSeconds != null) {
-            if (parsedSeconds == 0) {
-                counter.setMode(CounterSign.Mode.LIVE);
-            } else if (parsedSeconds == 10) {
-                counter.setMode(CounterSign.Mode.SEC_10);
-            } else if (parsedSeconds == 30) {
-                counter.setMode(CounterSign.Mode.SEC_30);
-            } else if (parsedSeconds == 60) {
-                counter.setMode(CounterSign.Mode.SEC_60);
-            } else {
-                counter.setCustomDuration(parsedSeconds);
+            // Determine sign front facing
+            Direction frontDir = Direction.NORTH;
+            BlockState state = level.getBlockState(pos);
+            if (state.getBlock() instanceof SignBlock signBlock) {
+                float yRot = signBlock.getYRotationDegrees(state);
+                frontDir = Direction.fromYRot(yRot);
             }
-        } else {
-            // Default to configured default timer
-            int defSec = ItemCounterConfig.getInstance().defaultTimerSeconds;
-            if (defSec == 10) counter.setMode(CounterSign.Mode.SEC_10);
-            else if (defSec == 30) counter.setMode(CounterSign.Mode.SEC_30);
-            else if (defSec == 60) counter.setMode(CounterSign.Mode.SEC_60);
-            else if (defSec <= 0) counter.setMode(CounterSign.Mode.LIVE);
-            else counter.setCustomDuration(defSec);
-        }
 
-        return counter;
+            boolean isBackSide = (!frontHas && backHas);
+            counter.setFacing(frontDir, isBackSide);
+
+            // Parse optional duration (e.g. 10s, 30s, 60s, live, or custom seconds)
+            SignText targetText = isBackSide ? sign.getBackText() : sign.getFrontText();
+            String fullSignContent = getCombinedText(targetText);
+
+            Integer parsedSeconds = parseDurationSeconds(fullSignContent);
+            if (parsedSeconds != null) {
+                if (parsedSeconds == 0) {
+                    counter.setMode(CounterSign.Mode.LIVE);
+                } else if (parsedSeconds == 10) {
+                    counter.setMode(CounterSign.Mode.SEC_10);
+                } else if (parsedSeconds == 30) {
+                    counter.setMode(CounterSign.Mode.SEC_30);
+                } else if (parsedSeconds == 60) {
+                    counter.setMode(CounterSign.Mode.SEC_60);
+                } else {
+                    counter.setCustomDuration(parsedSeconds);
+                }
+                signConfig.testDurationSeconds = parsedSeconds;
+            } else {
+                int defSec = signConfig.testDurationSeconds;
+                if (defSec == 10) counter.setMode(CounterSign.Mode.SEC_10);
+                else if (defSec == 30) counter.setMode(CounterSign.Mode.SEC_30);
+                else if (defSec == 60) counter.setMode(CounterSign.Mode.SEC_60);
+                else if (defSec <= 0) counter.setMode(CounterSign.Mode.LIVE);
+                else counter.setCustomDuration(defSec);
+            }
+
+            return counter;
+        } catch (Throwable t) {
+            ItemCounterMod.LOGGER.error("[Item Counter] Failed to create counter sign at " + pos, t);
+            return null;
+        }
     }
 
     public static boolean hasCounterText(SignText text) {
