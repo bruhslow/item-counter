@@ -1,82 +1,44 @@
 package me.giridharan.itemcounter.command;
 
 import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.arguments.DoubleArgumentType;
-import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import me.giridharan.itemcounter.config.ItemCounterConfig;
 import me.giridharan.itemcounter.config.ItemCounterConfigScreen;
-import me.giridharan.itemcounter.config.ItemCounterConfirmation;
 import me.giridharan.itemcounter.config.ItemCounterHudEditScreen;
-import me.giridharan.itemcounter.config.SignConfigData;
 import me.giridharan.itemcounter.counter.CounterManager;
 import me.giridharan.itemcounter.counter.CounterSign;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
 
 import java.util.Map;
 
 public class ItemCounterCommand {
 
     public static void register(CommandDispatcher<FabricClientCommandSource> dispatcher) {
-        dispatcher.register(ClientCommands.literal("counter")
-                .executes(ctx -> showHelp(ctx.getSource()))
-                .then(ClientCommands.literal("gui").executes(ctx -> openGui()))
-                .then(ClientCommands.literal("menu").executes(ctx -> openGui()))
-                .then(ClientCommands.literal("hud").executes(ctx -> openHudEditor()))
-                .then(ClientCommands.literal("move").executes(ctx -> openHudEditor()))
-                .then(ClientCommands.literal("coords").executes(ctx -> toggleCoordinates(ctx.getSource())))
-                .then(ClientCommands.literal("showcoords").executes(ctx -> toggleCoordinates(ctx.getSource())))
-                .then(ClientCommands.literal("money").executes(ctx -> toggleMoney(ctx.getSource())))
-                .then(ClientCommands.literal("height")
-                        .then(ClientCommands.argument("blocks", DoubleArgumentType.doubleArg(0.0, 10.0))
-                                .executes(ctx -> setHologramHeight(ctx.getSource(), DoubleArgumentType.getDouble(ctx, "blocks")))))
-                .then(ClientCommands.literal("scale")
-                        .then(ClientCommands.argument("size", DoubleArgumentType.doubleArg(0.4, 3.0))
-                                .executes(ctx -> setHologramScale(ctx.getSource(), DoubleArgumentType.getDouble(ctx, "size")))))
-                .then(ClientCommands.literal("help").executes(ctx -> showHelp(ctx.getSource())))
-                .then(ClientCommands.literal("list").executes(ctx -> listCounters(ctx.getSource())))
-                .then(ClientCommands.literal("clear").executes(ctx -> clearCounters(ctx.getSource())))
-                .then(ClientCommands.literal("reset").executes(ctx -> resetClosest(ctx.getSource())))
-                .then(ClientCommands.literal("rename")
-                        .then(ClientCommands.argument("name", StringArgumentType.greedyString())
-                                .executes(ctx -> renameClosest(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
-                .then(ClientCommands.literal("price")
-                        .then(ClientCommands.argument("item", StringArgumentType.word())
-                                .then(ClientCommands.argument("cost", DoubleArgumentType.doubleArg(0.0))
-                                        .executes(ctx -> setItemPrice(ctx.getSource(), StringArgumentType.getString(ctx, "item"), DoubleArgumentType.getDouble(ctx, "cost"))))))
-        );
+        // Register primary /itemcounter command
+        dispatcher.register(buildRootCommand("itemcounter"));
 
-        // Alias /itemcounter
-        dispatcher.register(ClientCommands.literal("itemcounter")
+        // Register /counter shortcut alias
+        dispatcher.register(buildRootCommand("counter"));
+    }
+
+    private static LiteralArgumentBuilder<FabricClientCommandSource> buildRootCommand(String root) {
+        return ClientCommands.literal(root)
                 .executes(ctx -> showHelp(ctx.getSource()))
+                .then(ClientCommands.literal("help").executes(ctx -> showHelp(ctx.getSource())))
                 .then(ClientCommands.literal("gui").executes(ctx -> openGui()))
                 .then(ClientCommands.literal("menu").executes(ctx -> openGui()))
                 .then(ClientCommands.literal("hud").executes(ctx -> openHudEditor()))
                 .then(ClientCommands.literal("move").executes(ctx -> openHudEditor()))
-                .then(ClientCommands.literal("coords").executes(ctx -> toggleCoordinates(ctx.getSource())))
-                .then(ClientCommands.literal("showcoords").executes(ctx -> toggleCoordinates(ctx.getSource())))
-                .then(ClientCommands.literal("money").executes(ctx -> toggleMoney(ctx.getSource())))
-                .then(ClientCommands.literal("height")
-                        .then(ClientCommands.argument("blocks", DoubleArgumentType.doubleArg(0.0, 10.0))
-                                .executes(ctx -> setHologramHeight(ctx.getSource(), DoubleArgumentType.getDouble(ctx, "blocks")))))
-                .then(ClientCommands.literal("scale")
-                        .then(ClientCommands.argument("size", DoubleArgumentType.doubleArg(0.4, 3.0))
-                                .executes(ctx -> setHologramScale(ctx.getSource(), DoubleArgumentType.getDouble(ctx, "size")))))
-                .then(ClientCommands.literal("help").executes(ctx -> showHelp(ctx.getSource())))
                 .then(ClientCommands.literal("list").executes(ctx -> listCounters(ctx.getSource())))
-                .then(ClientCommands.literal("clear").executes(ctx -> clearCounters(ctx.getSource())))
                 .then(ClientCommands.literal("reset").executes(ctx -> resetClosest(ctx.getSource())))
-                .then(ClientCommands.literal("rename")
-                        .then(ClientCommands.argument("name", StringArgumentType.greedyString())
-                                .executes(ctx -> renameClosest(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
-                .then(ClientCommands.literal("price")
-                        .then(ClientCommands.argument("item", StringArgumentType.word())
-                                .then(ClientCommands.argument("cost", DoubleArgumentType.doubleArg(0.0))
-                                        .executes(ctx -> setItemPrice(ctx.getSource(), StringArgumentType.getString(ctx, "item"), DoubleArgumentType.getDouble(ctx, "cost"))))))
-        );
+                .then(ClientCommands.literal("clear").executes(ctx -> clearCounters(ctx.getSource())));
     }
 
     private static int openGui() {
@@ -95,68 +57,34 @@ public class ItemCounterCommand {
         return 1;
     }
 
-    private static int setHologramHeight(FabricClientCommandSource source, double height) {
-        ItemCounterConfig config = ItemCounterConfig.getInstance();
-        config.hologramHeight = height;
-        config.save();
-        source.sendFeedback(Component.literal("§6[Item Counter] §aSet 3D hologram vertical height to: §b§l" + height + " blocks"));
-        return 1;
-    }
-
-    private static int setHologramScale(FabricClientCommandSource source, double scale) {
-        ItemCounterConfig config = ItemCounterConfig.getInstance();
-        config.hologramScale = scale;
-        config.save();
-        source.sendFeedback(Component.literal("§6[Item Counter] §aSet 3D hologram text size/scale to: §b§l" + scale + "x"));
-        return 1;
-    }
-
-    private static int toggleMoney(FabricClientCommandSource source) {
-        ItemCounterConfig config = ItemCounterConfig.getInstance();
-        config.showMoneyInHologram = !config.showMoneyInHologram;
-        config.showMoneyInHud = config.showMoneyInHologram;
-        config.save();
-        String status = config.showMoneyInHologram ? "§a§lENABLED (Entities + Money)" : "§e§lDISABLED (Only Entities)";
-        source.sendFeedback(Component.literal("§6[Item Counter] §aMoney display in hologram & sidebar: " + status));
-        return 1;
-    }
-
-    private static int toggleCoordinates(FabricClientCommandSource source) {
-        Minecraft client = Minecraft.getInstance();
-        ItemCounterConfig config = ItemCounterConfig.getInstance();
-
-        if (config.showCoordinatesInChat) {
-            config.showCoordinatesInChat = false;
-            config.save();
-            source.sendFeedback(Component.literal("§6[Item Counter] §aCoordinates in chat have been §c§lHIDDEN§a (safe mode)."));
-            return 1;
-        } else {
-            client.execute(() -> {
-                ItemCounterConfirmation.requestEnableCoordinates(client, null, () -> {
-                    config.showCoordinatesInChat = true;
-                    config.save();
-                });
-            });
-            return 1;
-        }
-    }
-
     private static int showHelp(FabricClientCommandSource source) {
-        source.sendFeedback(Component.literal("§6§l=== Item Counter Guide (Fabric 26.2) ==="));
-        source.sendFeedback(Component.literal("§e1. §fPlace a sign and write §bcounter §fon it."));
-        source.sendFeedback(Component.literal("§e2. §fOpen Settings: §b/counter gui §7(or press your bound key)"));
-        source.sendFeedback(Component.literal("   §7- Adjust 3D Hologram vertical height & text scale"));
-        source.sendFeedback(Component.literal("   §7- Toggle between 'Only Entities' or 'Entities + Money'"));
-        source.sendFeedback(Component.literal("   §7- Rename each sign board & filter specific items"));
-        source.sendFeedback(Component.literal("§e3. §fCommands:"));
-        source.sendFeedback(Component.literal("   §7- §b/counter height <blocks> §f: Set hologram vertical height (e.g. 1.5, 2.5)"));
-        source.sendFeedback(Component.literal("   §7- §b/counter scale <size> §f: Set hologram size (e.g. 0.8, 1.2)"));
-        source.sendFeedback(Component.literal("   §7- §b/counter money §f: Toggle money generated on/off"));
-        source.sendFeedback(Component.literal("   §7- §b/counter hud §f: Drag & move sidebar HUD"));
-        source.sendFeedback(Component.literal("   §7- §b/counter coords §f: Toggle coordinate privacy"));
-        source.sendFeedback(Component.literal("   §7- §b/counter reset §f: Restart nearest counter"));
-        source.sendFeedback(Component.literal("   §7- §b/counter list §f: Show all active counters & values"));
+        source.sendFeedback(Component.literal("§6§l================ Item Counter (v1.0) ================"));
+        source.sendFeedback(Component.literal("§eBy §6Slowbag §7| §fItem & Entity Flow Counter for Fabric 26.2"));
+        source.sendFeedback(Component.literal(""));
+        source.sendFeedback(Component.literal("§e§lCommands: §7(Click any command below to execute)"));
+        source.sendFeedback(createCommandRow("/itemcounter help", "Display this commands & usage guide", "§eClick to run /itemcounter help"));
+        source.sendFeedback(createCommandRow("/itemcounter gui", "Open full Settings GUI (Hologram, HUD, Prices, Signs)", "§aClick to open GUI"));
+        source.sendFeedback(createCommandRow("/itemcounter hud", "Click & drag live watch sidebar box on screen", "§aClick to move HUD"));
+        source.sendFeedback(createCommandRow("/itemcounter list", "List active sign counters, status & items passed", "§aClick to list active counters"));
+        source.sendFeedback(createCommandRow("/itemcounter reset", "Restart / reset nearest counter sign test", "§aClick to reset closest counter"));
+        source.sendFeedback(createCommandRow("/itemcounter clear", "Clear all registered counters from memory", "§cClick to clear counters"));
+        source.sendFeedback(Component.literal(""));
+        source.sendFeedback(Component.literal("§e§lHow It Works:"));
+        source.sendFeedback(Component.literal(" §b1. §fPlace a sign and write §bcounter §fon it (front or back)."));
+        source.sendFeedback(Component.literal(" §b2. §fItems floating directly in front of the sign are tracked."));
+        source.sendFeedback(Component.literal(" §b3. §fRight-click sign to reset test; Shift+Right-click to cycle duration."));
+        source.sendFeedback(Component.literal(" §b4. §fOpen §b/itemcounter gui §fto customize 3D hologram size/height, prices & privacy."));
+        source.sendFeedback(Component.literal("§6§l======================================================"));
         return 1;
+    }
+
+    private static MutableComponent createCommandRow(String cmd, String desc, String hover) {
+        MutableComponent button = Component.literal("§b" + cmd)
+                .withStyle(style -> style
+                        .withClickEvent(new ClickEvent.RunCommand(cmd))
+                        .withHoverEvent(new HoverEvent.ShowText(Component.literal(hover))));
+
+        return Component.literal("  ").append(button).append(Component.literal(" §8» §7" + desc));
     }
 
     private static int listCounters(FabricClientCommandSource source) {
@@ -167,7 +95,7 @@ public class ItemCounterCommand {
         }
 
         ItemCounterConfig config = ItemCounterConfig.getInstance();
-        source.sendFeedback(Component.literal("§6§l[Item Counter] Active Counters (" + counters.size() + "):"));
+        source.sendFeedback(Component.literal("§6§l=== Active Counter Signs (" + counters.size() + ") ==="));
         for (Map.Entry<BlockPos, CounterSign> entry : counters.entrySet()) {
             BlockPos pos = entry.getKey();
             CounterSign c = entry.getValue();
@@ -175,49 +103,11 @@ public class ItemCounterCommand {
             String posStr = config.showCoordinatesInChat ? (" §7(" + pos.toShortString() + ")") : "";
             double money = c.getTotalMoneyValue();
             String moneyStr = config.showMoneyInHud ? (" §7| Value: §a" + config.currencySymbol + String.format("%,.0f", money)) : "";
+            String status = c.isFinished() ? "§a[DONE]" : (c.isRunning() ? "§e[RUNNING]" : "§7[PAUSED]");
 
-            source.sendFeedback(Component.literal("§e- §f" + name + posStr + " §7Mode: §b" + c.getDisplayName()
-                    + " §7| Items: §a" + c.getTotalItemsCounted() + " §7(~" + (int) c.getRatePerMinute() + "/m)" + moneyStr));
+            source.sendFeedback(Component.literal("§e- §f" + name + posStr + " " + status + " §7Mode: §b" + c.getDisplayName()
+                    + " §7| Items: §a§l" + c.getTotalItemsCounted() + " §7(~" + (int) c.getRatePerMinute() + "/m)" + moneyStr));
         }
-        return 1;
-    }
-
-    private static int renameClosest(FabricClientCommandSource source, String newName) {
-        Map<BlockPos, CounterSign> counters = CounterManager.getActiveCounters();
-        if (counters.isEmpty()) {
-            source.sendFeedback(Component.literal("§c[Item Counter] No active counters found nearby to rename!"));
-            return 0;
-        }
-
-        BlockPos playerPos = source.getPlayer().blockPosition();
-        BlockPos closest = null;
-        double closestDist = Double.MAX_VALUE;
-
-        for (BlockPos pos : counters.keySet()) {
-            double d = pos.distSqr(playerPos);
-            if (d < closestDist) {
-                closestDist = d;
-                closest = pos;
-            }
-        }
-
-        if (closest != null) {
-            SignConfigData data = ItemCounterConfig.getInstance().getOrCreateSignConfig(closest.getX(), closest.getY(), closest.getZ());
-            data.customName = newName;
-            ItemCounterConfig.getInstance().save();
-
-            String posStr = ItemCounterConfig.getInstance().showCoordinatesInChat ? (" at §e" + closest.toShortString()) : "";
-            source.sendFeedback(Component.literal("§6[Item Counter] §aRenamed sign" + posStr + " §ato: §b§l" + newName));
-            return 1;
-        }
-        return 0;
-    }
-
-    private static int setItemPrice(FabricClientCommandSource source, String item, double cost) {
-        ItemCounterConfig config = ItemCounterConfig.getInstance();
-        config.setItemPrice(item, cost);
-        config.save();
-        source.sendFeedback(Component.literal("§6[Item Counter] §aSet price for §e" + item + " §ato: §b§l" + config.currencySymbol + cost));
         return 1;
     }
 

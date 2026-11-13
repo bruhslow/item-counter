@@ -130,7 +130,8 @@ public class ItemCounterClientMod implements ClientModInitializer {
             if (c != null) {
                 c.restart();
                 client.player.playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, 0.9f, 1.4f);
-                client.player.sendSystemMessage(Component.literal("§6§l[Item Counter] §aRestarted nearest counter test at §e(" + closestPos.toShortString() + ")!"));
+                String posStr = ItemCounterConfig.getInstance().showCoordinatesInChat ? (" (" + closestPos.toShortString() + ")") : "";
+                client.player.sendSystemMessage(Component.literal("§6§l[Item Counter] §aRestarted " + c.getSignCustomName() + posStr + "!"));
             }
         }
     }
