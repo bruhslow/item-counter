@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "id": "itemcounter",
-  "version": "1.0.0",
+  "version": "1.5.7+26.x",
   "name": "Item Counter",
-  "description": "Converts any sign board into an active real-time farm item counter by typing 'counter'.\n• Measures items moving strictly in front of the sign face along water & ice streams.\n• Movable on-screen Live Watch sidebar with items/min speed & farm value calculations.\n• Features 3D floating holograms, multi-key keybinds, and coordinate privacy protection.",
+  "description": "Converts any sign board into an active real-time farm item counter by typing 'counter'.\n• Measures items moving strictly in front of the sign face along water & ice streams.\n• Movable on-screen Live Watch sidebar with items/min speed & farm value calculations.\n• Features 3D floating holograms, multi-key keybinds, and coordinate privacy protection.\n• Exclusively for Minecraft 26.x.",
   "authors": [
     "Slowbag"
   ],
@@ -24,7 +24,7 @@
   },
   "depends": {
     "fabricloader": ">=0.15.0",
-    "minecraft": "*",
+    "minecraft": ">=26.0 <=26.2",
     "fabric-api": "*"
   }
 }

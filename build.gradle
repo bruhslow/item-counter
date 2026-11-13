@@ -7,7 +7,7 @@ def loader_version = "0.20.1"
 def fabric_api_version = "0.161.0+26.2"
 def cloth_config_version = "26.2.155"
 
-def mod_version = "1.0.0"
+def mod_version = "1.5.7+26.x"
 def mod_id = "itemcounter"
 
 group = "me.giridharan"

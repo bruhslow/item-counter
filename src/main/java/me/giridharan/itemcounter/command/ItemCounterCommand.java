@@ -58,8 +58,8 @@ public class ItemCounterCommand {
     }
 
     private static int showHelp(FabricClientCommandSource source) {
-        source.sendFeedback(Component.literal("§6§l================ Item Counter (v1.0) ================"));
-        source.sendFeedback(Component.literal("§eBy §6Slowbag §7| §fItem & Entity Flow Counter for Fabric 26.2"));
+        source.sendFeedback(Component.literal("§6§l================ Item Counter (v1.5.7+26.x) ================"));
+        source.sendFeedback(Component.literal("§eBy §6Slowbag §7| §fItem & Entity Flow Counter for Minecraft 26.x"));
         source.sendFeedback(Component.literal(""));
         source.sendFeedback(Component.literal("§e§lCommands: §7(Click any command below to execute)"));
         source.sendFeedback(createCommandRow("/itemcounter help", "Display this commands & usage guide", "§eClick to run /itemcounter help"));
