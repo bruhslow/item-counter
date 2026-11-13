@@ -181,7 +181,8 @@ public class CounterSign {
         // 1. Purge records older than 30 seconds for live sliding rate calculation
         itemRecords.removeIf(record -> (now - record.timeMs()) > 30000L);
 
-        // 2. Strict In-Front Directional Detection Box
+        // 2. Multi-Zone Stream Detection Box:
+        // Captures items flowing directly in front of the sign face AND items passing through the sign block itself (water gate)
         Direction targetDir = getActiveDetectionDirection();
         BlockPos frontPos = pos.relative(targetDir);
 
@@ -189,25 +190,40 @@ public class CounterSign {
         boolean strict = config.strictInFrontOnly;
         AABB box;
         if (strict) {
-            box = new AABB(
-                    frontPos.getX() + 0.02, frontPos.getY() - 0.75, frontPos.getZ() + 0.02,
-                    frontPos.getX() + 0.98, frontPos.getY() + 1.25, frontPos.getZ() + 0.98
-            );
+            double minX = Math.min(pos.getX(), frontPos.getX()) - 0.2;
+            double maxX = Math.max(pos.getX(), frontPos.getX()) + 1.2;
+            double minY = Math.min(pos.getY(), frontPos.getY()) - 0.9;
+            double maxY = Math.max(pos.getY(), frontPos.getY()) + 1.4;
+            double minZ = Math.min(pos.getZ(), frontPos.getZ()) - 0.2;
+            double maxZ = Math.max(pos.getZ(), frontPos.getZ()) + 1.2;
+            box = new AABB(minX, minY, minZ, maxX, maxY, maxZ);
         } else {
-            box = new AABB(frontPos).inflate(0.5, 0.8, 0.5);
+            box = new AABB(pos).inflate(2.0, 1.5, 2.0);
         }
 
         SignConfigData signConfig = config.getOrCreateSignConfig(pos.getX(), pos.getY(), pos.getZ());
         String itemFilter = signConfig.itemFilter != null ? signConfig.itemFilter.trim().toLowerCase() : "";
 
-        List<Entity> entities = level.getEntities((Entity) null, box, entity -> entity instanceof ItemEntity || entity.isAlive());
+        // Query entities within the stream box
+        List<Entity> candidateEntities = new ArrayList<>(level.getEntities((Entity) null, box, entity -> (entity instanceof ItemEntity || entity.isAlive())));
 
-        for (Entity entity : entities) {
-            if (!box.intersects(entity.getBoundingBox())) {
+        // Fallback for client section rendering desync (queries all rendered client entities)
+        if (candidateEntities.isEmpty() && level instanceof net.minecraft.client.multiplayer.ClientLevel clientLevel) {
+            for (Entity e : clientLevel.entitiesForRendering()) {
+                if (e != null && (e instanceof ItemEntity || e.isAlive())) {
+                    if (box.intersects(e.getBoundingBox())) {
+                        candidateEntities.add(e);
+                    }
+                }
+            }
+        }
+
+        for (Entity entity : candidateEntities) {
+            if (entity == null || entity.isRemoved()) {
                 continue;
             }
 
-            if (!isEntityMoving(entity)) {
+            if (!box.intersects(entity.getBoundingBox())) {
                 continue;
             }
 
@@ -264,18 +280,6 @@ public class CounterSign {
             }
         }
         return false;
-    }
-
-    private boolean isEntityMoving(Entity entity) {
-        Vec3 vel = entity.getDeltaMovement();
-        double speedSqr = vel.x * vel.x + vel.y * vel.y + vel.z * vel.z;
-        if (speedSqr > 0.00005) {
-            return true;
-        }
-        double dx = entity.getX() - entity.xOld;
-        double dy = entity.getY() - entity.yOld;
-        double dz = entity.getZ() - entity.zOld;
-        return (dx * dx + dy * dy + dz * dz) > 0.00005;
     }
 
     private void finishTimer(Player player) {

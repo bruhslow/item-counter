@@ -84,18 +84,22 @@ public class CounterManager {
             CounterSign counter = entry.getValue();
 
             if (level.isLoaded(pos)) {
-                BlockEntity be = level.getBlockEntity(pos);
-                if (!(be instanceof SignBlockEntity sign)) {
+                BlockState state = level.getBlockState(pos);
+                if (state.isAir() || !(state.getBlock() instanceof SignBlock)) {
+                    // Sign was physically broken/removed
                     it.remove();
                     continue;
                 }
 
-                // If text was erased and no longer contains "counter", remove counter
-                boolean frontHas = hasCounterText(sign.getFrontText());
-                boolean backHas = hasCounterText(sign.getBackText());
-                if (!frontHas && !backHas) {
-                    it.remove();
-                    continue;
+                BlockEntity be = level.getBlockEntity(pos);
+                if (be instanceof SignBlockEntity sign) {
+                    // If text was erased and no longer contains "counter", remove counter
+                    boolean frontHas = hasCounterText(sign.getFrontText());
+                    boolean backHas = hasCounterText(sign.getBackText());
+                    if (!frontHas && !backHas) {
+                        it.remove();
+                        continue;
+                    }
                 }
             }
 
@@ -106,10 +110,10 @@ public class CounterManager {
             }
         }
 
-        // 2. Periodic automatic detection of signs with "counter" text (every 20 ticks / 1 second)
+        // 2. Periodic automatic detection of signs with "counter" text (every 10 ticks / 0.5s)
         scanCooldown--;
         if (scanCooldown <= 0) {
-            scanCooldown = 20;
+            scanCooldown = 10;
             try {
                 scanNearbySigns(level, player.blockPosition());
             } catch (Throwable t) {
@@ -119,14 +123,17 @@ public class CounterManager {
     }
 
     private static void scanNearbySigns(Level level, BlockPos playerPos) {
-        int radius = 16;
-        BlockPos min = playerPos.offset(-radius, -8, -radius);
-        BlockPos max = playerPos.offset(radius, 8, radius);
+        int radius = 24;
+        BlockPos min = playerPos.offset(-radius, -12, -radius);
+        BlockPos max = playerPos.offset(radius, 12, radius);
 
         for (BlockPos pos : BlockPos.betweenClosed(min, max)) {
             if (activeCounters.containsKey(pos)) continue;
 
             try {
+                BlockState state = level.getBlockState(pos);
+                if (!(state.getBlock() instanceof SignBlock)) continue;
+
                 BlockEntity be = level.getBlockEntity(pos);
                 if (be instanceof SignBlockEntity sign) {
                     boolean frontHas = hasCounterText(sign.getFrontText());
