@@ -71,10 +71,9 @@ public class ItemCounterConfigScreen {
         } else {
             for (SignConfigData data : config.signConfigs.values()) {
                 String locTag = config.showCoordinatesInChat ? (" §7(" + data.x + ", " + data.y + ", " + data.z + ")") : "";
-                SubCategoryBuilder signSub = entryBuilder.startSubCategory(
-                        Component.literal("§6✦ " + data.getDisplayName() + locTag)
-                );
-                signSub.setExpanded(true);
+                signsCat.addEntry(entryBuilder.startTextDescription(
+                        Component.literal("§6§l✦ Sign Board: §e§l" + data.getDisplayName() + locTag)
+                ).build());
 
                 // --- 1. General & Farm Settings (Default Minimized) ---
                 SubCategoryBuilder generalSub = entryBuilder.startSubCategory(Component.literal("⚙️ General & Farm Settings"));
@@ -123,7 +122,7 @@ public class ItemCounterConfigScreen {
                         .setTooltip(Component.literal("Comma-separated item IDs to count at this sign (e.g. twisting_vines, iron_ingot). Leave blank for ALL items."))
                         .build());
 
-                signSub.add(generalSub.build());
+                signsCat.addEntry(generalSub.build());
 
                 // --- 2. Outer GUI (Sidebar HUD) Settings (Default Minimized) ---
                 SubCategoryBuilder hudSub = entryBuilder.startSubCategory(Component.literal("📺 Outer GUI (Sidebar HUD) Settings"));
@@ -133,7 +132,7 @@ public class ItemCounterConfigScreen {
                                 Component.literal("Enable Sidebar HUD (Master Switch)"),
                                 config.showLiveWatchHud
                         )
-                        .setDefaultValue(false)
+                        .setDefaultValue(true)
                         .setSaveConsumer(val -> config.showLiveWatchHud = val)
                         .setTooltip(Component.literal("Master on/off switch for displaying the movable live watch sidebar HUD on your screen."))
                         .build());
@@ -213,7 +212,7 @@ public class ItemCounterConfigScreen {
                         .setTooltip(Component.literal("YES = Show 'Continuous Flow Monitor' or countdown timer status at the bottom of the card."))
                         .build());
 
-                signSub.add(hudSub.build());
+                signsCat.addEntry(hudSub.build());
 
                 // --- 3. 3D In-World Hologram Settings (Default Minimized) ---
                 SubCategoryBuilder holoSub = entryBuilder.startSubCategory(Component.literal("✨ 3D In-World Hologram Settings"));
@@ -322,7 +321,7 @@ public class ItemCounterConfigScreen {
                         .setTooltip(Component.literal("Text scaling factor for this sign's hologram (e.g. 0.8x smaller, 1.0x normal, 1.5x larger)."))
                         .build());
 
-                signSub.add(holoSub.build());
+                signsCat.addEntry(holoSub.build());
 
                 // --- 4. Coordinates & Anti-Leak Privacy (Default Minimized) ---
                 SubCategoryBuilder coordSub = entryBuilder.startSubCategory(Component.literal("📍 Coordinates & Privacy"));
@@ -343,9 +342,7 @@ public class ItemCounterConfigScreen {
                                 : "§8[📍 Location Coordinates Hidden for Anti-Leak Privacy - Toggle ON above to reveal]")
                 ).build());
 
-                signSub.add(coordSub.build());
-
-                signsCat.addEntry(signSub.build());
+                signsCat.addEntry(coordSub.build());
             }
         }
 
