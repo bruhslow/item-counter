@@ -69,6 +69,8 @@ public class CounterSign {
 
     // Entity item counts map to properly handle item stacking & merging in streams
     private final Map<Integer, Integer> countedEntityItemCounts = new HashMap<>();
+    // Entity previous known position map for high-speed trajectory sweeping
+    private final Map<Integer, Vec3> lastKnownEntityPositions = new java.util.concurrent.ConcurrentHashMap<>();
     // Sliding window of records for rate calculation
     private final List<CountRecord> itemRecords = new ArrayList<>();
     // Item counts by ID
@@ -165,6 +167,7 @@ public class CounterSign {
         this.totalItemsCounted = 0;
         this.totalMoneyValue = 0.0;
         this.countedEntityItemCounts.clear();
+        this.lastKnownEntityPositions.clear();
         this.itemRecords.clear();
         this.itemCounts.clear();
         this.justRestarted = true;
@@ -209,17 +212,29 @@ public class CounterSign {
         boolean strict = config.strictInFrontOnly;
         AABB box;
         if (strict) {
-            // Across stream (facing axis): covers sign block (pos) and the block straight in front (frontPos)
-            double minFacing = Math.min(pos.get(facingAxis), frontPos.get(facingAxis));
-            double maxFacing = Math.max(pos.get(facingAxis), frontPos.get(facingAxis)) + 1.0;
+            // Across stream (facing axis): covers sign block and out into the stream in front of the sign face (up to 2.8 blocks out)
+            double signFacing = pos.get(facingAxis);
+            double step = (facingAxis == Direction.Axis.X) ? targetDir.getStepX() : targetDir.getStepZ();
+            double minFacing, maxFacing;
+            if (step > 0) {
+                minFacing = signFacing;
+                maxFacing = signFacing + 2.8;
+            } else if (step < 0) {
+                minFacing = signFacing - 1.8;
+                maxFacing = signFacing + 1.0;
+            } else {
+                minFacing = signFacing - 1.0;
+                maxFacing = signFacing + 2.0;
+            }
 
-            // Along the side axis (perpAxis): STRICTLY 1 block wide — exactly that particular block aligned with the sign!
-            double minPerp = pos.get(perpAxis);
-            double maxPerp = pos.get(perpAxis) + 1.0;
+            // Along the stream flow (perpAxis): 6 blocks wide (-2.5 to +3.5 relative to sign)
+            // This guarantees items traveling on blue ice at 25-30 blocks/sec spend multiple consecutive ticks inside the detection zone!
+            double minPerp = pos.get(perpAxis) - 2.5;
+            double maxPerp = pos.get(perpAxis) + 3.5;
 
-            // Vertically (Y): covers pos (sign itself) down to Y - 2.2 (detecting water at Y - 1 and blue ice floor at Y - 2)
-            double minY = pos.getY() - 2.2;
-            double maxY = pos.getY() + 1.2;
+            // Vertically (Y): covers from Y - 2.5 (detecting water stream and blue ice floor) up to Y + 1.5
+            double minY = pos.getY() - 2.5;
+            double maxY = pos.getY() + 1.5;
 
             double minX = (facingAxis == Direction.Axis.X) ? minFacing : minPerp;
             double maxX = (facingAxis == Direction.Axis.X) ? maxFacing : maxPerp;
@@ -228,7 +243,7 @@ public class CounterSign {
 
             box = new AABB(minX, minY, minZ, maxX, maxY, maxZ);
         } else {
-            box = new AABB(pos).inflate(3.5, 3.0, 3.5);
+            box = new AABB(pos).inflate(4.5, 3.0, 4.5);
         }
 
         SignConfigData signConfig = config.getOrCreateSignConfig(pos.getX(), pos.getY(), pos.getZ());
@@ -237,7 +252,7 @@ public class CounterSign {
         // Query entities within the stream box using dual lookup (spatial index + client rendering iterator)
         Set<Entity> candidateEntities = new LinkedHashSet<>();
         try {
-            AABB queryBox = box.inflate(1.5, 0.5, 1.5);
+            AABB queryBox = box.inflate(3.0, 1.0, 3.0);
             List<Entity> list = level.getEntities((Entity) null, queryBox, entity -> entity != null && !entity.isRemoved() && !(entity instanceof Player));
             if (list != null) {
                 candidateEntities.addAll(list);
@@ -266,39 +281,51 @@ public class CounterSign {
                 continue;
             }
 
-            // Strict check: Entity must belong to that particular 1-block column (not side 1 block or side 2 blocks)
-            if (strict) {
-                double perpVal = (perpAxis == Direction.Axis.X) ? entity.getX() : entity.getZ();
-                double prevPerpVal = (perpAxis == Direction.Axis.X) ? entity.xOld : entity.zOld;
-                int targetPerpBlock = pos.get(perpAxis);
-                int curPerpBlock = (int) Math.floor(perpVal);
+            // Continuous high-speed trajectory tracking between ticks
+            Vec3 currentPos = entity.position();
+            Vec3 prevPos = lastKnownEntityPositions.put(entity.getId(), currentPos);
 
-                boolean inPerpColumn = (curPerpBlock == targetPerpBlock);
-                if (!inPerpColumn) {
-                    // Allow if the item swept across this particular block during high-speed ice transit
-                    double minTraj = Math.min(prevPerpVal, perpVal);
-                    double maxTraj = Math.max(prevPerpVal, perpVal);
-                    if (minTraj <= (targetPerpBlock + 0.5) && maxTraj >= (targetPerpBlock + 0.5)) {
-                        inPerpColumn = true;
+            AABB entityBox = entity.getBoundingBox();
+            boolean intersects = box.intersects(entityBox);
+
+            if (!intersects) {
+                // 1. Exact swept bounding box with our recorded previous position
+                if (prevPos != null) {
+                    AABB prevBox = entityBox.move(prevPos.x - currentPos.x, prevPos.y - currentPos.y, prevPos.z - currentPos.z);
+                    if (box.intersects(entityBox.minmax(prevBox))) {
+                        intersects = true;
                     }
                 }
 
-                if (!inPerpColumn) {
-                    continue; // Strictly reject any item 1 block or 2 blocks to the side!
+                // 2. Line segment raycast from prevPos to currentPos through the detection box
+                if (!intersects && prevPos != null) {
+                    if (box.clip(prevPos, currentPos).isPresent()) {
+                        intersects = true;
+                    }
                 }
-            }
 
-            // Check direct bounding box intersection OR swept trajectory intersection (for items moving at high speed on ice)
-            AABB entityBox = entity.getBoundingBox();
-            boolean intersects = box.intersects(entityBox);
-            if (!intersects) {
-                double dx = entity.xOld - entity.getX();
-                double dy = entity.yOld - entity.getY();
-                double dz = entity.zOld - entity.getZ();
-                AABB prevBox = entityBox.move(dx, dy, dz);
-                AABB sweptBox = entityBox.minmax(prevBox);
-                if (box.intersects(sweptBox)) {
-                    intersects = true;
+                // 3. Swept trajectory with entity velocity vector (deltaMovement)
+                if (!intersects) {
+                    Vec3 vel = entity.getDeltaMovement();
+                    if (vel != null && vel.lengthSqr() > 0.001) {
+                        AABB velBox = entityBox.move(-vel.x * 2.0, -vel.y * 2.0, -vel.z * 2.0);
+                        if (box.intersects(entityBox.minmax(velBox))) {
+                            intersects = true;
+                        }
+                    }
+                }
+
+                // 4. Swept trajectory with vanilla entity xOld / yOld / zOld
+                if (!intersects) {
+                    double dx = entity.xOld - entity.getX();
+                    double dy = entity.yOld - entity.getY();
+                    double dz = entity.zOld - entity.getZ();
+                    if (dx * dx + dy * dy + dz * dz > 0.001) {
+                        AABB oldBox = entityBox.move(dx, dy, dz);
+                        if (box.intersects(entityBox.minmax(oldBox))) {
+                            intersects = true;
+                        }
+                    }
                 }
             }
 
@@ -348,6 +375,9 @@ public class CounterSign {
         // Periodically purge despawned or collected entities from memory
         if (countedEntityItemCounts.size() > 500) {
             countedEntityItemCounts.keySet().removeIf(id -> level.getEntity(id) == null);
+        }
+        if (lastKnownEntityPositions.size() > 500) {
+            lastKnownEntityPositions.keySet().removeIf(id -> level.getEntity(id) == null);
         }
 
         // 3. Check timer expiration for timed modes
