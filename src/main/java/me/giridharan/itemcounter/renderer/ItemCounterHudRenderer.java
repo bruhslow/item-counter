@@ -21,8 +21,6 @@ import java.util.Map;
 public class ItemCounterHudRenderer {
 
     public static final int CARD_WIDTH = 175;
-    public static final int CARD_HEIGHT_WITH_MONEY = 52;
-    public static final int CARD_HEIGHT_NO_MONEY = 40;
 
     public static void register() {
         HudElementRegistry.addLast(
@@ -47,29 +45,31 @@ public class ItemCounterHudRenderer {
             return;
         }
 
-        Map<BlockPos, CounterSign> counters = CounterManager.getActiveCounters();
-        if (counters.isEmpty()) {
-            return;
-        }
-
         BlockPos playerPos = client.player.blockPosition();
+        Map<BlockPos, CounterSign> counters = CounterManager.getActiveCounters();
 
-        // Collect all active counters that have showInHud == true within 64 blocks
+        // Collect all active counters that have showInHud == true within 192 blocks
         List<CounterSign> enabledSigns = new ArrayList<>();
-        for (Map.Entry<BlockPos, CounterSign> entry : counters.entrySet()) {
-            BlockPos pos = entry.getKey();
-            if (pos.distSqr(playerPos) <= 64 * 64) {
-                // If sign is broken or destroyed in-world, immediately remove from HUD frame and config
-                net.minecraft.world.level.block.state.BlockState state = client.level.getBlockState(pos);
-                if (state.isAir() || !(state.getBlock() instanceof net.minecraft.world.level.block.SignBlock)) {
-                    counters.remove(pos);
-                    config.removeSignConfig(pos.getX(), pos.getY(), pos.getZ());
-                    continue;
+        if (config.signConfigs != null) {
+            for (SignConfigData sc : config.signConfigs.values()) {
+                if (!sc.showInHud) continue;
+                BlockPos pos = new BlockPos(sc.x, sc.y, sc.z);
+
+                // Skip if chunk is loaded and block is air
+                if (client.level.isLoaded(pos)) {
+                    net.minecraft.world.level.block.state.BlockState state = client.level.getBlockState(pos);
+                    if (state.isAir() || !(state.getBlock() instanceof net.minecraft.world.level.block.SignBlock)) {
+                        continue;
+                    }
                 }
 
-                SignConfigData sc = config.getOrCreateSignConfig(pos.getX(), pos.getY(), pos.getZ());
-                if (sc.showInHud) {
-                    enabledSigns.add(entry.getValue());
+                if (pos.distSqr(playerPos) <= 192 * 192) {
+                    CounterSign sign = counters.computeIfAbsent(pos, p -> {
+                        CounterSign cs = new CounterSign(p);
+                        cs.setCustomDuration(sc.testDurationSeconds);
+                        return cs;
+                    });
+                    enabledSigns.add(sign);
                 }
             }
         }
@@ -86,8 +86,21 @@ public class ItemCounterHudRenderer {
         // Render a card for each active, enabled sign board in the sidebar
         for (CounterSign sign : enabledSigns) {
             SignConfigData sc = config.getOrCreateSignConfig(sign.getPos().getX(), sign.getPos().getY(), sign.getPos().getZ());
-            boolean showMoneyThisSign = sc.showMoneyInHud && config.showMoneyInHud;
-            int cardHeight = showMoneyThisSign ? CARD_HEIGHT_WITH_MONEY : CARD_HEIGHT_NO_MONEY;
+
+            boolean showHeader = sc.showHudHeader;
+            boolean showCount = sc.showHudCount;
+            boolean showMoney = sc.showMoneyInHud && config.showMoneyInHud;
+            boolean showFooter = sc.showHudFooter;
+
+            int lineCount = 0;
+            if (showHeader) lineCount++;
+            if (showCount) lineCount++;
+            if (showMoney) lineCount++;
+            if (showFooter) lineCount++;
+
+            if (lineCount == 0) continue; // Nothing to render for this card
+
+            int cardHeight = 8 + (lineCount * 11);
 
             if (currentY + cardHeight > graphics.guiHeight() - 2) {
                 break; // Don't overflow bottom of screen
@@ -97,45 +110,63 @@ public class ItemCounterHudRenderer {
             graphics.fill(hudX, currentY, hudX + CARD_WIDTH, currentY + cardHeight, 0x88000000);
             graphics.outline(hudX, currentY, CARD_WIDTH, cardHeight, 0x88555555);
 
+            int textY = currentY + 4;
+
             // 1. Sign Board Name & Single Mode Badge
-            String signName = sign.getSignCustomName();
-            String headerTitle;
-            if (sign.getTargetDurationSeconds() <= 0) {
-                headerTitle = "§6§l⚡ " + truncate(signName, 16) + " §a● [LIVE]";
-            } else if (sign.isFinished()) {
-                headerTitle = "§6§l⚡ " + truncate(signName, 16) + " §6★ [DONE - " + sign.getDisplayName() + "]";
-            } else {
-                headerTitle = "§6§l⚡ " + truncate(signName, 16) + " §e⏳ [" + sign.getDisplayName() + "]";
+            if (showHeader) {
+                String rawName = sign.getSignCustomName();
+                String cleanName = rawName.replaceAll("\\[(Live Rate|10s|30s|60s|LIVE RATE)\\]", "").trim();
+                String headerTitle = "§6§l⚡ " + truncate(cleanName, 16);
+                if (sc.showHudBadge) {
+                    if (sign.getTargetDurationSeconds() <= 0) {
+                        headerTitle += " §a● [LIVE]";
+                    } else if (sign.isFinished()) {
+                        headerTitle += " §6★ [DONE]";
+                    } else {
+                        headerTitle += " §e⏳ [" + sign.getDisplayName() + "]";
+                    }
+                }
+                graphics.text(font, Component.literal(headerTitle), hudX + 5, textY, 0xFFFFFF, true);
+                textY += 11;
             }
 
             // 2. Entity / Items Passed (starts at 0, climbs up)
-            int total = sign.getTotalItemsCounted();
-            String rateText = (total == 0) ? "§7(Waiting...)" : ("§7(~" + String.format("%.0f", sign.getRatePerMinute()) + "/m)");
-            String passedStr = "§fEntity Passed: §e§l" + total + " " + rateText;
-
-            graphics.text(font, Component.literal(headerTitle), hudX + 5, currentY + 4, 0xFFFFFF, true);
-            graphics.text(font, Component.literal(passedStr), hudX + 5, currentY + 15, 0xFFFFFF, true);
+            if (showCount) {
+                int total = sign.getTotalItemsCounted();
+                String passedStr = "§fEntity Passed: §e§l" + total;
+                if (sc.showHudRate) {
+                    String rateText = (total == 0) ? " §7(Waiting...)" : (" §7(~" + String.format("%.0f", sign.getRatePerMinute()) + "/m)");
+                    passedStr += rateText;
+                }
+                graphics.text(font, Component.literal(passedStr), hudX + 5, textY, 0xFFFFFF, true);
+                textY += 11;
+            }
 
             // 3. Money Made in There
-            int textY = currentY + 26;
-            if (showMoneyThisSign) {
+            if (showMoney) {
                 double totalMoney = sign.getTotalMoneyValue();
-                double moneyRateMin = sign.getMoneyRatePerMinute();
-                String moneyStr = "§aMoney Made: §e§l" + config.currencySymbol + String.format("%,.0f", totalMoney) + " §7(§a~" + config.currencySymbol + String.format("%,.0f", moneyRateMin) + "/m§7)";
+                String moneyStr = "§aMoney Made: §e§l" + config.currencySymbol + String.format("%,.0f", totalMoney);
+                if (sc.showHudMoneyRate) {
+                    double moneyRateMin = sign.getMoneyRatePerMinute();
+                    moneyStr += " §7(§a~" + config.currencySymbol + String.format("%,.0f", moneyRateMin) + "/m§7)";
+                }
                 graphics.text(font, Component.literal(moneyStr), hudX + 5, textY, 0xFFFFFF, true);
                 textY += 11;
             }
 
             // 4. Status / Live Rate Monitor
-            String timerStr;
-            if (sign.getTargetDurationSeconds() <= 0) {
-                timerStr = "§7Continuous Flow Monitor";
-            } else if (sign.isFinished()) {
-                timerStr = "§6★ Test Finished";
-            } else {
-                timerStr = "§a⏳ " + sign.getRemainingSeconds() + "s remaining";
+            if (showFooter) {
+                String timerStr;
+                if (sign.getTargetDurationSeconds() <= 0) {
+                    timerStr = "§7Continuous Flow Monitor";
+                } else if (sign.isFinished()) {
+                    timerStr = "§6★ Test Finished";
+                } else {
+                    timerStr = "§a⏳ " + sign.getRemainingSeconds() + "s remaining";
+                }
+                graphics.text(font, Component.literal(timerStr), hudX + 5, textY, 0xFFFFFF, true);
+                textY += 11;
             }
-            graphics.text(font, Component.literal(timerStr), hudX + 5, textY, 0xFFFFFF, true);
 
             currentY += cardHeight + 4;
         }

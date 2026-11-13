@@ -78,6 +78,19 @@ public class CounterManager {
         Level level = client.level;
         Player player = client.player;
 
+        // 0. Ensure all configured signs are pre-populated in activeCounters so HUD/holograms never miss them
+        ItemCounterConfig config = ItemCounterConfig.getInstance();
+        if (config.signConfigs != null) {
+            for (SignConfigData sc : config.signConfigs.values()) {
+                BlockPos scPos = new BlockPos(sc.x, sc.y, sc.z);
+                activeCounters.computeIfAbsent(scPos, p -> {
+                    CounterSign counter = new CounterSign(p);
+                    counter.setCustomDuration(sc.testDurationSeconds);
+                    return counter;
+                });
+            }
+        }
+
         // 1. Tick all active counters and validate they still exist and still have "counter" written on them
         Iterator<Map.Entry<BlockPos, CounterSign>> it = activeCounters.entrySet().iterator();
         while (it.hasNext()) {

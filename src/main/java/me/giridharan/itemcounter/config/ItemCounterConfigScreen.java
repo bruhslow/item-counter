@@ -130,21 +130,87 @@ public class ItemCounterConfigScreen {
                 hudSub.setExpanded(true);
 
                 hudSub.add(entryBuilder.startBooleanToggle(
-                                Component.literal("Show on Outer GUI (Sidebar HUD)"),
-                                data.showInHud
+                                Component.literal("Enable Sidebar HUD (Master Switch)"),
+                                config.showLiveWatchHud
                         )
-                        .setDefaultValue(true)
-                        .setSaveConsumer(val -> data.showInHud = val)
-                        .setTooltip(Component.literal("YES = Display this sign board's live view feed on the outer GUI sidebar. NO = Hide from outer GUI."))
+                        .setDefaultValue(false)
+                        .setSaveConsumer(val -> config.showLiveWatchHud = val)
+                        .setTooltip(Component.literal("Master on/off switch for displaying the movable live watch sidebar HUD on your screen."))
                         .build());
 
                 hudSub.add(entryBuilder.startBooleanToggle(
-                                Component.literal("Show Money in Outer GUI Card"),
+                                Component.literal("Show this Sign on Sidebar HUD"),
+                                data.showInHud
+                        )
+                        .setDefaultValue(true)
+                        .setSaveConsumer(val -> {
+                            data.showInHud = val;
+                            if (val) config.showLiveWatchHud = true;
+                        })
+                        .setTooltip(Component.literal("YES = Display this sign board on the HUD sidebar. Automatically activates the HUD."))
+                        .build());
+
+                hudSub.add(entryBuilder.startBooleanToggle(
+                                Component.literal("Show Sign Name & Header"),
+                                data.showHudHeader
+                        )
+                        .setDefaultValue(true)
+                        .setSaveConsumer(val -> data.showHudHeader = val)
+                        .setTooltip(Component.literal("YES = Show the sign board's custom name in the sidebar HUD card."))
+                        .build());
+
+                hudSub.add(entryBuilder.startBooleanToggle(
+                                Component.literal("Show Mode / Status Badge"),
+                                data.showHudBadge
+                        )
+                        .setDefaultValue(true)
+                        .setSaveConsumer(val -> data.showHudBadge = val)
+                        .setTooltip(Component.literal("YES = Show [LIVE] or [10s] mode badge in the sidebar header."))
+                        .build());
+
+                hudSub.add(entryBuilder.startBooleanToggle(
+                                Component.literal("Show Entity Passed (Item Count)"),
+                                data.showHudCount
+                        )
+                        .setDefaultValue(true)
+                        .setSaveConsumer(val -> data.showHudCount = val)
+                        .setTooltip(Component.literal("YES = Show total items/entities passed through the stream on the sidebar."))
+                        .build());
+
+                hudSub.add(entryBuilder.startBooleanToggle(
+                                Component.literal("Show Item Flow Speed (~items/min)"),
+                                data.showHudRate
+                        )
+                        .setDefaultValue(true)
+                        .setSaveConsumer(val -> data.showHudRate = val)
+                        .setTooltip(Component.literal("YES = Show calculated items per minute speed indicator next to the item count."))
+                        .build());
+
+                hudSub.add(entryBuilder.startBooleanToggle(
+                                Component.literal("Show Total Money Made ($)"),
                                 data.showMoneyInHud
                         )
                         .setDefaultValue(true)
                         .setSaveConsumer(val -> data.showMoneyInHud = val)
-                        .setTooltip(Component.literal("YES = Display calculated total earnings and per-minute rate on the outer GUI. NO = Count and speed only."))
+                        .setTooltip(Component.literal("YES = Display calculated total earnings on the outer GUI sidebar."))
+                        .build());
+
+                hudSub.add(entryBuilder.startBooleanToggle(
+                                Component.literal("Show Money Rate (~$/min)"),
+                                data.showHudMoneyRate
+                        )
+                        .setDefaultValue(false)
+                        .setSaveConsumer(val -> data.showHudMoneyRate = val)
+                        .setTooltip(Component.literal("YES = Show money earnings speed per minute/second next to money total. (Default: OFF / Hidden)."))
+                        .build());
+
+                hudSub.add(entryBuilder.startBooleanToggle(
+                                Component.literal("Show Status Monitor Footer"),
+                                data.showHudFooter
+                        )
+                        .setDefaultValue(true)
+                        .setSaveConsumer(val -> data.showHudFooter = val)
+                        .setTooltip(Component.literal("YES = Show 'Continuous Flow Monitor' or countdown timer status at the bottom of the card."))
                         .build());
 
                 signSub.add(hudSub.build());
@@ -160,6 +226,69 @@ public class ItemCounterConfigScreen {
                         .setDefaultValue(true)
                         .setSaveConsumer(val -> data.showHologram = val)
                         .setTooltip(Component.literal("YES = Project floating 3D text in-world directly above this sign board. NO = Disable hologram."))
+                        .build());
+
+                holoSub.add(entryBuilder.startBooleanToggle(
+                                Component.literal("Show Sign Name in Header"),
+                                data.showHoloHeader
+                        )
+                        .setDefaultValue(true)
+                        .setSaveConsumer(val -> data.showHoloHeader = val)
+                        .setTooltip(Component.literal("YES = Show the custom name of the sign board in the hologram header."))
+                        .build());
+
+                holoSub.add(entryBuilder.startBooleanToggle(
+                                Component.literal("Show Mode / Status Badge"),
+                                data.showHoloBadge
+                        )
+                        .setDefaultValue(true)
+                        .setSaveConsumer(val -> data.showHoloBadge = val)
+                        .setTooltip(Component.literal("YES = Show [LIVE RATE] or [10s] status badge in the hologram header."))
+                        .build());
+
+                holoSub.add(entryBuilder.startBooleanToggle(
+                                Component.literal("Show Entity Passed (Item Count)"),
+                                data.showHoloCount
+                        )
+                        .setDefaultValue(true)
+                        .setSaveConsumer(val -> data.showHoloCount = val)
+                        .setTooltip(Component.literal("YES = Show total items/entities passed on line 2 of the hologram."))
+                        .build());
+
+                holoSub.add(entryBuilder.startBooleanToggle(
+                                Component.literal("Show Item Flow Speed (~items/min)"),
+                                data.showHoloRate
+                        )
+                        .setDefaultValue(true)
+                        .setSaveConsumer(val -> data.showHoloRate = val)
+                        .setTooltip(Component.literal("YES = Show live calculated flow rate (~items/min) next to entity passed."))
+                        .build());
+
+                holoSub.add(entryBuilder.startBooleanToggle(
+                                Component.literal("Show Total Money Made ($)"),
+                                data.showMoneyInHologram
+                        )
+                        .setDefaultValue(true)
+                        .setSaveConsumer(val -> data.showMoneyInHologram = val)
+                        .setTooltip(Component.literal("YES = Show calculated total dollar/money value earned on line 3."))
+                        .build());
+
+                holoSub.add(entryBuilder.startBooleanToggle(
+                                Component.literal("Show Money Rate (~$/min)"),
+                                data.showHoloMoneyRate
+                        )
+                        .setDefaultValue(false)
+                        .setSaveConsumer(val -> data.showHoloMoneyRate = val)
+                        .setTooltip(Component.literal("YES = Show money earnings speed per minute/second next to money total. (Default: OFF / Hidden)."))
+                        .build());
+
+                holoSub.add(entryBuilder.startBooleanToggle(
+                                Component.literal("Show Interaction Guide Footer"),
+                                data.showHoloGuide
+                        )
+                        .setDefaultValue(true)
+                        .setSaveConsumer(val -> data.showHoloGuide = val)
+                        .setTooltip(Component.literal("YES = Show 'Right-click: reset | Shift+Right-click: mode' footer in the hologram."))
                         .build());
 
                 holoSub.add(entryBuilder.startDoubleField(
@@ -182,15 +311,6 @@ public class ItemCounterConfigScreen {
                         .setMax(3.0)
                         .setSaveConsumer(val -> data.hologramScale = Math.max(0.4, Math.min(3.0, val)))
                         .setTooltip(Component.literal("Text scaling factor for this sign's hologram (e.g. 0.8x smaller, 1.0x normal, 1.5x larger)."))
-                        .build());
-
-                holoSub.add(entryBuilder.startBooleanToggle(
-                                Component.literal("Show Money in Hologram"),
-                                data.showMoneyInHologram
-                        )
-                        .setDefaultValue(true)
-                        .setSaveConsumer(val -> data.showMoneyInHologram = val)
-                        .setTooltip(Component.literal("YES = Show item count AND calculated money generated. NO = Show ONLY items count & flow rate."))
                         .build());
 
                 signSub.add(holoSub.build());

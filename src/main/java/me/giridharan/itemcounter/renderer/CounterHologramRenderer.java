@@ -13,6 +13,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 public class CounterHologramRenderer {
@@ -48,12 +50,12 @@ public class CounterHologramRenderer {
                 BlockPos pos = entry.getKey();
                 CounterSign sign = entry.getValue();
 
-                // If sign was physically broken or removed, immediately stop rendering hologram
-                net.minecraft.world.level.block.state.BlockState state = client.level.getBlockState(pos);
-                if (state.isAir() || !(state.getBlock() instanceof net.minecraft.world.level.block.SignBlock)) {
-                    counters.remove(pos);
-                    config.removeSignConfig(pos.getX(), pos.getY(), pos.getZ());
-                    continue;
+                // If block is air or not loaded, skip rendering (lifecycle purging is handled in tick)
+                if (client.level.isLoaded(pos)) {
+                    net.minecraft.world.level.block.state.BlockState state = client.level.getBlockState(pos);
+                    if (state.isAir() || !(state.getBlock() instanceof net.minecraft.world.level.block.SignBlock)) {
+                        continue;
+                    }
                 }
 
                 SignConfigData sc = config.getOrCreateSignConfig(pos.getX(), pos.getY(), pos.getZ());
@@ -87,51 +89,75 @@ public class CounterHologramRenderer {
         float scale = (float) Math.max(0.4, Math.min(3.0, sc.getEffectiveScale(config.hologramScale)));
         poseStack.scale(scale, scale, scale);
 
-        // Line 1: Header with custom sign name and single clean mode badge
-        String signName = sign.getSignCustomName();
-        String headerTitle;
-        if (sign.getTargetDurationSeconds() <= 0) {
-            headerTitle = "§6§l⚡ " + signName + " §a● [LIVE RATE]";
-        } else if (sign.isFinished()) {
-            headerTitle = "§6§l⚡ " + signName + " §6★ [DONE - " + sign.getDisplayName() + "]";
-        } else {
-            headerTitle = "§6§l⚡ " + signName + " §e⏳ [" + sign.getDisplayName() + "]";
-        }
-        Component line1 = Component.literal(headerTitle);
+        // Strip duplicate mode text if already present in sign name
+        String rawName = sign.getSignCustomName();
+        String cleanName = rawName.replaceAll("\\[(Live Rate|10s|30s|60s|LIVE RATE)\\]", "").trim();
 
-        // Line 2: Items / Entities Passed (starts at 0, climbs as items pass)
+        List<Component> visibleLines = new ArrayList<>();
+
+        // 1. Header with custom sign name and single clean mode badge
+        if (sc.showHoloHeader) {
+            String headerTitle = "§6§l⚡ " + cleanName;
+            if (sc.showHoloBadge) {
+                if (sign.getTargetDurationSeconds() <= 0) {
+                    headerTitle += " §a● [LIVE RATE]";
+                } else if (sign.isFinished()) {
+                    headerTitle += " §6★ [DONE - " + sign.getDisplayName() + "]";
+                } else {
+                    headerTitle += " §e⏳ [" + sign.getDisplayName() + "]";
+                }
+            }
+            visibleLines.add(Component.literal(headerTitle));
+        }
+
+        // 2. Items / Entities Passed (starts at 0, climbs as items pass)
         int total = sign.getTotalItemsCounted();
         double rateMin = sign.getRatePerMinute();
-        String rateText = (total == 0) ? "§7(Waiting...)" : ("§7(§b~" + String.format("%.0f", rateMin) + "/m§7)");
-        Component line2 = Component.literal("§fEntity Passed: §e§l" + total + " " + rateText);
+        if (sc.showHoloCount) {
+            String passedStr = "§fEntity Passed: §e§l" + total;
+            if (sc.showHoloRate) {
+                String rateText = (total == 0) ? " §7(Waiting...)" : (" §7(§b~" + String.format("%.0f", rateMin) + "/m§7)");
+                passedStr += rateText;
+            }
+            visibleLines.add(Component.literal(passedStr));
+        }
 
-        // Line 3: Money Made if enabled for this sign board (starts at $0, climbs as items pass)
-        Component line3;
-        if (sc.showMoneyInHologram) {
+        // 3. Money Made if enabled for this sign board (starts at $0, climbs as items pass)
+        if (sc.showMoneyInHologram && config.showMoneyInHologram) {
             double totalMoney = sign.getTotalMoneyValue();
-            double moneyRateMin = sign.getMoneyRatePerMinute();
-            String moneyRateText = (total == 0) ? "" : (" §7(§a~" + config.currencySymbol + String.format("%,.0f", moneyRateMin) + "/m§7)");
-            line3 = Component.literal("§aMoney Made: §e§l" + config.currencySymbol + String.format("%,.0f", totalMoney) + moneyRateText);
-        } else {
-            double rateSec = sign.getRatePerSecond();
-            line3 = Component.literal("§bSpeed: §a§l~" + String.format("%.0f", rateMin) + " §7items/min §8(" + String.format("%.1f", rateSec) + "/s)");
+            String moneyStr = "§aMoney Made: §e§l" + config.currencySymbol + String.format("%,.0f", totalMoney);
+            if (sc.showHoloMoneyRate) {
+                double moneyRateMin = sign.getMoneyRatePerMinute();
+                if (total > 0) {
+                    moneyStr += " §7(§a~" + config.currencySymbol + String.format("%,.0f", moneyRateMin) + "/m§7)";
+                }
+            }
+            visibleLines.add(Component.literal(moneyStr));
         }
 
-        // Line 4: Quick interaction guide / countdown remaining
-        Component line4;
-        if (sign.getTargetDurationSeconds() <= 0) {
-            line4 = Component.literal("§7Right-click: reset | Shift+Right-click: mode");
-        } else if (sign.isFinished()) {
-            line4 = Component.literal("§6★ Test Finished! §8| §7Right-click: restart");
-        } else {
-            line4 = Component.literal("§a⏳ " + sign.getRemainingSeconds() + "s remaining §8| §7Right-click: reset");
+        // 4. Quick interaction guide / countdown remaining
+        if (sc.showHoloGuide) {
+            Component lineGuide;
+            if (sign.getTargetDurationSeconds() <= 0) {
+                lineGuide = Component.literal("§7Right-click: reset | Shift+Right-click: mode");
+            } else if (sign.isFinished()) {
+                lineGuide = Component.literal("§6★ Test Finished! §8| §7Right-click: restart");
+            } else {
+                lineGuide = Component.literal("§a⏳ " + sign.getRemainingSeconds() + "s remaining §8| §7Right-click: reset");
+            }
+            visibleLines.add(lineGuide);
         }
 
-        // Submitting billboard nametags spaced along Y with seeThrough=true
-        collector.submitNameTag(poseStack, new Vec3(0, 0.75, 0), 0, line1, true, 0xF000F0, camera);
-        collector.submitNameTag(poseStack, new Vec3(0, 0.50, 0), 0, line2, true, 0xF000F0, camera);
-        collector.submitNameTag(poseStack, new Vec3(0, 0.25, 0), 0, line3, true, 0xF000F0, camera);
-        collector.submitNameTag(poseStack, new Vec3(0, 0.00, 0), 0, line4, true, 0xF000F0, camera);
+        if (visibleLines.isEmpty()) {
+            poseStack.popPose();
+            return;
+        }
+
+        // Submit billboard nametags dynamically spaced along Y
+        for (int i = 0; i < visibleLines.size(); i++) {
+            double yOffset = (visibleLines.size() - 1 - i) * 0.25;
+            collector.submitNameTag(poseStack, new Vec3(0, yOffset, 0), 0, visibleLines.get(i), true, 0xF000F0, camera);
+        }
 
         poseStack.popPose();
     }

@@ -53,7 +53,7 @@ public class ItemCounterHudEditScreen extends Screen {
     }
 
     private int getCardHeight() {
-        return config.showMoneyInHud ? ItemCounterHudRenderer.CARD_HEIGHT_WITH_MONEY : ItemCounterHudRenderer.CARD_HEIGHT_NO_MONEY;
+        return config.showMoneyInHud ? 52 : 40;
     }
 
     private void clampCoordinates() {
@@ -137,7 +137,7 @@ public class ItemCounterHudEditScreen extends Screen {
 
         int textY = hudY + 26;
         if (config.showMoneyInHud) {
-            String moneyStr = "§aMoney Made: §e§l" + config.currencySymbol + String.format("%,.0f", money) + " §7(§a~" + config.currencySymbol + String.format("%,.0f", moneyRate) + "/m§7)";
+            String moneyStr = "§aMoney Made: §e§l" + config.currencySymbol + String.format("%,.0f", money);
             graphics.text(this.font, Component.literal(moneyStr), hudX + 5, textY, 0xFFFFFF, true);
             textY += 11;
         }

@@ -15,13 +15,25 @@ public class SignConfigData {
 
     // 3. Live View Feed / Outer GUI (Sidebar HUD)
     public boolean showInHud = true; // Show on outer GUI: Yes / No
-    public boolean showMoneyInHud = true; // Show money on outer GUI: Yes / No
+    public boolean showHudHeader = true; // Show sign name on HUD card
+    public boolean showHudBadge = true; // Show mode badge [LIVE] / [10s]
+    public boolean showHudCount = true; // Show entity passed count
+    public boolean showHudRate = true; // Show flow rate (~items/min)
+    public boolean showMoneyInHud = true; // Show total money earned on HUD
+    public boolean showHudMoneyRate = false; // Show money per sec/min (DEFAULT FALSE: REMOVED as requested)
+    public boolean showHudFooter = true; // Show monitor status footer
 
     // 4. 3D In-World Hologram setup for this sign board
     public boolean showHologram = true; // Enable 3D hologram: Yes / No
+    public boolean showHoloHeader = true; // Show custom name in hologram
+    public boolean showHoloBadge = true; // Show mode badge [LIVE RATE]
+    public boolean showHoloCount = true; // Show entity passed count
+    public boolean showHoloRate = true; // Show flow rate (~items/min)
+    public boolean showMoneyInHologram = true; // Show total money earned in hologram
+    public boolean showHoloMoneyRate = false; // Show money per sec/min (DEFAULT FALSE: REMOVED as requested)
+    public boolean showHoloGuide = true; // Show interaction guide footer (Right-click reset)
     public double hologramHeight = 1.25; // Vertical height offset (0.0 to 10.0 blocks)
     public double hologramScale = 1.0; // Size/scale (0.4x to 3.0x)
-    public boolean showMoneyInHologram = true; // Yes = Items + Money | No = Only entities/items
 
     // 5. Item Filter & Test Duration
     public String itemFilter = ""; // Comma-separated item names e.g. "iron_ingot, poppy"
@@ -39,12 +51,27 @@ public class SignConfigData {
         this.customName = customName;
         this.useSignCustomPrice = true;
         this.pricePerItem = 10.0;
+
         this.showInHud = true;
+        this.showHudHeader = true;
+        this.showHudBadge = true;
+        this.showHudCount = true;
+        this.showHudRate = true;
         this.showMoneyInHud = true;
+        this.showHudMoneyRate = false;
+        this.showHudFooter = true;
+
         this.showHologram = true;
+        this.showHoloHeader = true;
+        this.showHoloBadge = true;
+        this.showHoloCount = true;
+        this.showHoloRate = true;
+        this.showMoneyInHologram = true;
+        this.showHoloMoneyRate = false;
+        this.showHoloGuide = true;
         this.hologramHeight = 1.25;
         this.hologramScale = 1.0;
-        this.showMoneyInHologram = true;
+
         this.itemFilter = "";
         this.testDurationSeconds = 0;
         this.customHologramHeight = -1.0;
