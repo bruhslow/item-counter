@@ -64,8 +64,8 @@ public class CounterSign {
     private int totalItemsCounted = 0;
     private double totalMoneyValue = 0.0;
 
-    // Entity deduplication so passing items are counted only once
-    private final Set<Integer> countedEntityIds = new HashSet<>();
+    // Entity item counts map to properly handle item stacking & merging in streams
+    private final Map<Integer, Integer> countedEntityItemCounts = new HashMap<>();
     // Sliding window of records for rate calculation
     private final List<CountRecord> itemRecords = new ArrayList<>();
     // Item counts by ID
@@ -160,7 +160,7 @@ public class CounterSign {
         this.elapsedTicks = 0;
         this.totalItemsCounted = 0;
         this.totalMoneyValue = 0.0;
-        this.countedEntityIds.clear();
+        this.countedEntityItemCounts.clear();
         this.itemRecords.clear();
         this.itemCounts.clear();
     }
@@ -181,8 +181,9 @@ public class CounterSign {
         // 1. Purge records older than 30 seconds for live sliding rate calculation
         itemRecords.removeIf(record -> (now - record.timeMs()) > 30000L);
 
-        // 2. Multi-Zone Stream Detection Box:
-        // Captures items flowing directly in front of the sign face AND items passing through the sign block itself (water gate)
+        // 2. Stream Detection Box:
+        // Captures items flowing directly in front of the sign face, items passing through the sign block itself (water gate),
+        // and items in adjacent streams or dropped into hoppers/chutes 1-2 blocks below/above.
         Direction targetDir = getActiveDetectionDirection();
         BlockPos frontPos = pos.relative(targetDir);
 
@@ -190,36 +191,45 @@ public class CounterSign {
         boolean strict = config.strictInFrontOnly;
         AABB box;
         if (strict) {
-            double minX = Math.min(pos.getX(), frontPos.getX()) - 0.2;
-            double maxX = Math.max(pos.getX(), frontPos.getX()) + 1.2;
-            double minY = Math.min(pos.getY(), frontPos.getY()) - 0.9;
-            double maxY = Math.max(pos.getY(), frontPos.getY()) + 1.4;
-            double minZ = Math.min(pos.getZ(), frontPos.getZ()) - 0.2;
-            double maxZ = Math.max(pos.getZ(), frontPos.getZ()) + 1.2;
+            double minX = Math.min(pos.getX(), frontPos.getX()) - 1.0;
+            double maxX = Math.max(pos.getX(), frontPos.getX()) + 2.0;
+            double minY = Math.min(pos.getY(), frontPos.getY()) - 1.5;
+            double maxY = Math.max(pos.getY(), frontPos.getY()) + 2.0;
+            double minZ = Math.min(pos.getZ(), frontPos.getZ()) - 1.0;
+            double maxZ = Math.max(pos.getZ(), frontPos.getZ()) + 2.0;
             box = new AABB(minX, minY, minZ, maxX, maxY, maxZ);
         } else {
-            box = new AABB(pos).inflate(2.0, 1.5, 2.0);
+            box = new AABB(pos).inflate(3.5, 2.5, 3.5);
         }
 
         SignConfigData signConfig = config.getOrCreateSignConfig(pos.getX(), pos.getY(), pos.getZ());
         String itemFilter = signConfig.itemFilter != null ? signConfig.itemFilter.trim().toLowerCase() : "";
 
-        // Query entities within the stream box
-        List<Entity> candidateEntities = new ArrayList<>(level.getEntities((Entity) null, box, entity -> (entity instanceof ItemEntity || entity.isAlive())));
+        // Query entities within the stream box using dual lookup (spatial index + client rendering iterator)
+        Set<Entity> candidateEntities = new LinkedHashSet<>();
+        try {
+            List<Entity> list = level.getEntities((Entity) null, box, entity -> entity != null && !entity.isRemoved() && !(entity instanceof Player));
+            if (list != null) {
+                candidateEntities.addAll(list);
+            }
+        } catch (Throwable ignored) {}
 
-        // Fallback for client section rendering desync (queries all rendered client entities)
-        if (candidateEntities.isEmpty() && level instanceof net.minecraft.client.multiplayer.ClientLevel clientLevel) {
-            for (Entity e : clientLevel.entitiesForRendering()) {
-                if (e != null && (e instanceof ItemEntity || e.isAlive())) {
-                    if (box.intersects(e.getBoundingBox())) {
-                        candidateEntities.add(e);
+        if (level instanceof net.minecraft.client.multiplayer.ClientLevel clientLevel) {
+            try {
+                for (Entity e : clientLevel.entitiesForRendering()) {
+                    if (e != null && !e.isRemoved() && !(e instanceof Player)) {
+                        if (e instanceof ItemEntity || e.isAlive()) {
+                            if (box.intersects(e.getBoundingBox())) {
+                                candidateEntities.add(e);
+                            }
+                        }
                     }
                 }
-            }
+            } catch (Throwable ignored) {}
         }
 
         for (Entity entity : candidateEntities) {
-            if (entity == null || entity.isRemoved()) {
+            if (entity == null || entity.isRemoved() || entity instanceof Player) {
                 continue;
             }
 
@@ -227,10 +237,10 @@ public class CounterSign {
                 continue;
             }
 
-            int count = 1;
+            int currentCount = 1;
             String rawId = "entity";
             if (entity instanceof ItemEntity itemEntity) {
-                count = Math.max(1, itemEntity.getItem().getCount());
+                currentCount = Math.max(1, itemEntity.getItem().getCount());
                 Identifier id = BuiltInRegistries.ITEM.getKey(itemEntity.getItem().getItem());
                 rawId = id.getPath();
 
@@ -242,8 +252,11 @@ public class CounterSign {
                 }
             }
 
-            if (!countedEntityIds.contains(entity.getId())) {
-                countedEntityIds.add(entity.getId());
+            int prevCount = countedEntityItemCounts.getOrDefault(entity.getId(), 0);
+            int newItems = currentCount - prevCount;
+
+            if (newItems > 0) {
+                countedEntityItemCounts.put(entity.getId(), currentCount);
 
                 double unitPrice;
                 if (signConfig.useSignCustomPrice) {
@@ -251,12 +264,12 @@ public class CounterSign {
                 } else {
                     unitPrice = config.getItemPrice(rawId);
                 }
-                double money = count * unitPrice;
+                double money = newItems * unitPrice;
 
-                totalItemsCounted += count;
+                totalItemsCounted += newItems;
                 totalMoneyValue += money;
-                itemCounts.merge(rawId, count, Integer::sum);
-                itemRecords.add(new CountRecord(now, count, money));
+                itemCounts.merge(rawId, newItems, Integer::sum);
+                itemRecords.add(new CountRecord(now, newItems, money));
             }
         }
 

@@ -55,16 +55,16 @@ public class ItemCounterConfigScreen {
                         .setTooltip(Component.literal("Rename this sign board (e.g. Twisting Vine, Iron Farm, Gold Pipeline)."))
                         .build());
 
-                // 2. Test Duration for this specific sign board
+                // 2. Test Duration for this specific sign board (0 = Live Continuous Feed default)
                 signSub.add(entryBuilder.startIntField(
                                 Component.literal("Test Duration Seconds (0 = Live Continuous)"),
                                 data.testDurationSeconds
                         )
-                        .setDefaultValue(30)
+                        .setDefaultValue(0)
                         .setMin(0)
                         .setMax(3600)
                         .setSaveConsumer(val -> data.testDurationSeconds = Math.max(0, val))
-                        .setTooltip(Component.literal("Test countdown duration for this sign (e.g. 10, 30, 60s, or 0 for live continuous feed)."))
+                        .setTooltip(Component.literal("Test countdown duration for this sign (0 = Live continuous feed, or 10, 30, 60s)."))
                         .build());
 
                 // 3. Pricing System per Sign Board
@@ -240,14 +240,14 @@ public class ItemCounterConfigScreen {
                 .setTooltip(Component.literal("Only counts items moving directly in the 1-block stream facing the sign board."))
                 .build());
 
-        // 5. Global Enable Sidebar HUD
+        // 5. Global Enable Sidebar HUD (DISABLED BY DEFAULT)
         general.addEntry(entryBuilder.startBooleanToggle(
                         Component.literal("Enable Live Watch Sidebar HUD"),
                         config.showLiveWatchHud
                 )
-                .setDefaultValue(true)
+                .setDefaultValue(false)
                 .setSaveConsumer(val -> config.showLiveWatchHud = val)
-                .setTooltip(Component.literal("Master switch for displaying the movable live watch sidebar box on screen."))
+                .setTooltip(Component.literal("Master switch for displaying the movable live watch sidebar box on screen (Default: OFF)."))
                 .build());
 
         // 6. Currency Symbol

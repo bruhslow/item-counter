@@ -20,9 +20,9 @@ import java.util.Map;
 
 public class ItemCounterHudRenderer {
 
-    public static final int CARD_WIDTH = 165;
-    public static final int CARD_HEIGHT_WITH_MONEY = 56;
-    public static final int CARD_HEIGHT_NO_MONEY = 46;
+    public static final int CARD_WIDTH = 175;
+    public static final int CARD_HEIGHT_WITH_MONEY = 52;
+    public static final int CARD_HEIGHT_NO_MONEY = 40;
 
     public static void register() {
         HudElementRegistry.addLast(
@@ -89,26 +89,31 @@ public class ItemCounterHudRenderer {
             graphics.fill(hudX, currentY, hudX + CARD_WIDTH, currentY + cardHeight, 0x88000000);
             graphics.outline(hudX, currentY, CARD_WIDTH, cardHeight, 0x88555555);
 
+            // 1. Sign Board Name
             String signName = sign.getSignCustomName();
             String modeName = sign.getDisplayName();
             String status = sign.isFinished() ? "§a[DONE]" : (sign.getTargetDurationSeconds() <= 0 ? "§a[LIVE]" : "§e[RUNNING]");
-            String headerTitle = "§6⚡ " + truncate(signName, 14) + " §b[" + modeName + "] " + status;
+            String headerTitle = "§6§l⚡ " + truncate(signName, 15) + " §b[" + modeName + "] " + status;
+
+            // 2. Entity / Items Passed (starts at 0, climbs up)
             int total = sign.getTotalItemsCounted();
             String rateText = (total == 0) ? "§7(Waiting...)" : ("§7(~" + String.format("%.0f", sign.getRatePerMinute()) + "/m)");
-            String countStr = "§fCount: §e§l" + total + " " + rateText;
+            String passedStr = "§fEntity Passed: §e§l" + total + " " + rateText;
 
             graphics.text(font, Component.literal(headerTitle), hudX + 5, currentY + 4, 0xFFFFFF, true);
-            graphics.text(font, Component.literal(countStr), hudX + 5, currentY + 15, 0xFFFFFF, true);
+            graphics.text(font, Component.literal(passedStr), hudX + 5, currentY + 15, 0xFFFFFF, true);
 
-            int textY = currentY + 25;
+            // 3. Money Made in There
+            int textY = currentY + 26;
             if (showMoneyThisSign) {
                 double totalMoney = sign.getTotalMoneyValue();
                 double moneyRateMin = sign.getMoneyRatePerMinute();
-                String moneyStr = "§aMoney: §e§l" + config.currencySymbol + String.format("%,.0f", totalMoney) + " §7(§a~" + config.currencySymbol + String.format("%,.0f", moneyRateMin) + "/m§7)";
+                String moneyStr = "§aMoney Made: §e§l" + config.currencySymbol + String.format("%,.0f", totalMoney) + " §7(§a~" + config.currencySymbol + String.format("%,.0f", moneyRateMin) + "/m§7)";
                 graphics.text(font, Component.literal(moneyStr), hudX + 5, textY, 0xFFFFFF, true);
-                textY += 10;
+                textY += 11;
             }
 
+            // 4. Status / Live Rate Monitor
             String timerStr;
             if (sign.getTargetDurationSeconds() <= 0) {
                 timerStr = "§a● Live Rate Monitor";

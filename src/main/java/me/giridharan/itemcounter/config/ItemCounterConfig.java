@@ -29,8 +29,8 @@ public class ItemCounterConfig {
     // Anti-Leak Privacy: Coordinates hidden from chat messages (DISABLED BY DEFAULT!)
     public boolean showCoordinatesInChat = false;
 
-    // Live Watch On-Screen Sidebar HUD
-    public boolean showLiveWatchHud = true;
+    // Live Watch On-Screen Sidebar HUD (DISABLED BY DEFAULT!)
+    public boolean showLiveWatchHud = false;
     public boolean showMoneyInHud = true;
     public String currencySymbol = "$";
     public int liveWatchX = 10;

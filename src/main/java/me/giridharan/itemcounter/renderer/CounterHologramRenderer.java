@@ -89,19 +89,19 @@ public class CounterHologramRenderer {
         }
         Component line1 = Component.literal("§6§l⚡ " + signName + " §b[" + modeName + "] " + headerStatus);
 
-        // Line 2: Items Counted & Speed (starts at 0, climbs as items pass)
+        // Line 2: Items / Entities Passed (starts at 0, climbs as items pass)
         int total = sign.getTotalItemsCounted();
         double rateMin = sign.getRatePerMinute();
         String rateText = (total == 0) ? "§7(Waiting...)" : ("§7(§b~" + String.format("%.0f", rateMin) + "/m§7)");
-        Component line2 = Component.literal("§fCount: §e§l" + total + " items " + rateText);
+        Component line2 = Component.literal("§fEntity Passed: §e§l" + total + " " + rateText);
 
-        // Line 3: Value/Money if enabled for this sign board, otherwise speed per second
+        // Line 3: Money Made if enabled for this sign board (starts at $0, climbs as items pass)
         Component line3;
         if (sc.showMoneyInHologram) {
             double totalMoney = sign.getTotalMoneyValue();
             double moneyRateMin = sign.getMoneyRatePerMinute();
             String moneyRateText = (total == 0) ? "" : (" §7(§a~" + config.currencySymbol + String.format("%,.0f", moneyRateMin) + "/m§7)");
-            line3 = Component.literal("§aValue: §e§l" + config.currencySymbol + String.format("%,.0f", totalMoney) + moneyRateText);
+            line3 = Component.literal("§aMoney Made: §e§l" + config.currencySymbol + String.format("%,.0f", totalMoney) + moneyRateText);
         } else {
             double rateSec = sign.getRatePerSecond();
             line3 = Component.literal("§bSpeed: §a§l~" + String.format("%.0f", rateMin) + " §7items/min §8(" + String.format("%.1f", rateSec) + "/s)");

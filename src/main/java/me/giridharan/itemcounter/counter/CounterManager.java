@@ -59,11 +59,13 @@ public class CounterManager {
         } else {
             // Register this sign as a counter
             CounterSign counter = createCounterFromSign(level, pos, sign, frontHas, backHas);
-            activeCounters.put(pos, counter);
+            if (counter != null) {
+                activeCounters.put(pos, counter);
 
-            player.playSound(SoundEvents.PLAYER_LEVELUP, 1.0f, 1.2f);
-            player.sendSystemMessage(Component.literal("§6§l[Item Counter] §aSign converted to §e" + counter.getSignCustomName() + " (" + counter.getDisplayName() + ")§a!"));
-            player.sendSystemMessage(Component.literal("§7Right-click: Restart test | Shift + Right-click: Change duration. Open GUI to rename or set item price!"));
+                player.playSound(SoundEvents.PLAYER_LEVELUP, 1.0f, 1.2f);
+                player.sendSystemMessage(Component.literal("§6§l[Item Counter] §aSign converted to §e" + counter.getSignCustomName() + " (" + counter.getDisplayName() + ")§a!"));
+                player.sendSystemMessage(Component.literal("§7Right-click: Restart test | Shift + Right-click: Change duration. Open GUI to rename or set item price!"));
+            }
             return true;
         }
     }
@@ -172,6 +174,22 @@ public class CounterManager {
 
             // Parse optional duration (e.g. 10s, 30s, 60s, live, or custom seconds)
             SignText targetText = isBackSide ? sign.getBackText() : sign.getFrontText();
+
+            // Auto-detect custom name from other lines on the sign (e.g. "Twisting Vine" on line 2) if not already set
+            if (signConfig.customName == null || signConfig.customName.isBlank()) {
+                for (int i = 0; i < 4; i++) {
+                    Component msg = targetText.getMessage(i, false);
+                    if (msg != null) {
+                        String line = msg.getString().trim();
+                        if (!line.isEmpty() && !line.toLowerCase().contains("counter")) {
+                            signConfig.customName = line;
+                            ItemCounterConfig.getInstance().save();
+                            break;
+                        }
+                    }
+                }
+            }
+
             String fullSignContent = getCombinedText(targetText);
 
             Integer parsedSeconds = parseDurationSeconds(fullSignContent);

@@ -129,17 +129,17 @@ public class ItemCounterHudEditScreen extends Screen {
             timerStr = "§a⏳ 15s remaining";
         }
 
-        String headerTitle = "§6⚡ " + truncate(signName, 14) + " §b[" + modeName + "] " + status;
-        String countStr = "§fItems: §e§l" + count + " items §7(~" + String.format("%.0f", rateMin) + "/m)";
+        String headerTitle = "§6§l⚡ " + truncate(signName, 15) + " §b[" + modeName + "] " + status;
+        String passedStr = "§fEntity Passed: §e§l" + count + " items §7(~" + String.format("%.0f", rateMin) + "/m)";
 
         graphics.text(this.font, Component.literal(headerTitle), hudX + 5, hudY + 4, 0xFFFFFF, true);
-        graphics.text(this.font, Component.literal(countStr), hudX + 5, hudY + 15, 0xFFFFFF, true);
+        graphics.text(this.font, Component.literal(passedStr), hudX + 5, hudY + 15, 0xFFFFFF, true);
 
-        int textY = hudY + 25;
+        int textY = hudY + 26;
         if (config.showMoneyInHud) {
-            String moneyStr = "§aMoney: §e§l" + config.currencySymbol + String.format("%,.0f", money) + " §7(§a~" + config.currencySymbol + String.format("%,.0f", moneyRate) + "/m§7)";
+            String moneyStr = "§aMoney Made: §e§l" + config.currencySymbol + String.format("%,.0f", money) + " §7(§a~" + config.currencySymbol + String.format("%,.0f", moneyRate) + "/m§7)";
             graphics.text(this.font, Component.literal(moneyStr), hudX + 5, textY, 0xFFFFFF, true);
-            textY += 10;
+            textY += 11;
         }
 
         graphics.text(this.font, Component.literal(timerStr), hudX + 5, textY, 0xFFFFFF, true);
