@@ -97,11 +97,16 @@ public class ItemCounterHudRenderer {
             graphics.fill(hudX, currentY, hudX + CARD_WIDTH, currentY + cardHeight, 0x88000000);
             graphics.outline(hudX, currentY, CARD_WIDTH, cardHeight, 0x88555555);
 
-            // 1. Sign Board Name
+            // 1. Sign Board Name & Single Mode Badge
             String signName = sign.getSignCustomName();
-            String modeName = sign.getDisplayName();
-            String status = sign.isFinished() ? "§a[DONE]" : (sign.getTargetDurationSeconds() <= 0 ? "§a[LIVE]" : "§e[RUNNING]");
-            String headerTitle = "§6§l⚡ " + truncate(signName, 15) + " §b[" + modeName + "] " + status;
+            String headerTitle;
+            if (sign.getTargetDurationSeconds() <= 0) {
+                headerTitle = "§6§l⚡ " + truncate(signName, 16) + " §a● [LIVE]";
+            } else if (sign.isFinished()) {
+                headerTitle = "§6§l⚡ " + truncate(signName, 16) + " §6★ [DONE - " + sign.getDisplayName() + "]";
+            } else {
+                headerTitle = "§6§l⚡ " + truncate(signName, 16) + " §e⏳ [" + sign.getDisplayName() + "]";
+            }
 
             // 2. Entity / Items Passed (starts at 0, climbs up)
             int total = sign.getTotalItemsCounted();
@@ -124,9 +129,9 @@ public class ItemCounterHudRenderer {
             // 4. Status / Live Rate Monitor
             String timerStr;
             if (sign.getTargetDurationSeconds() <= 0) {
-                timerStr = "§a● Live Rate Monitor";
+                timerStr = "§7Continuous Flow Monitor";
             } else if (sign.isFinished()) {
-                timerStr = "§6★ Test Complete";
+                timerStr = "§6★ Test Finished";
             } else {
                 timerStr = "§a⏳ " + sign.getRemainingSeconds() + "s remaining";
             }

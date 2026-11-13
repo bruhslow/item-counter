@@ -87,18 +87,17 @@ public class CounterHologramRenderer {
         float scale = (float) Math.max(0.4, Math.min(3.0, sc.getEffectiveScale(config.hologramScale)));
         poseStack.scale(scale, scale, scale);
 
-        // Line 1: Header with custom sign name and mode
+        // Line 1: Header with custom sign name and single clean mode badge
         String signName = sign.getSignCustomName();
-        String modeName = sign.getDisplayName();
-        String headerStatus;
+        String headerTitle;
         if (sign.getTargetDurationSeconds() <= 0) {
-            headerStatus = "§a● [LIVE RATE]";
+            headerTitle = "§6§l⚡ " + signName + " §a● [LIVE RATE]";
         } else if (sign.isFinished()) {
-            headerStatus = "§6★ [FINISHED]";
+            headerTitle = "§6§l⚡ " + signName + " §6★ [DONE - " + sign.getDisplayName() + "]";
         } else {
-            headerStatus = "§e⏳ [COUNTING]";
+            headerTitle = "§6§l⚡ " + signName + " §e⏳ [" + sign.getDisplayName() + "]";
         }
-        Component line1 = Component.literal("§6§l⚡ " + signName + " §b[" + modeName + "] " + headerStatus);
+        Component line1 = Component.literal(headerTitle);
 
         // Line 2: Items / Entities Passed (starts at 0, climbs as items pass)
         int total = sign.getTotalItemsCounted();
@@ -118,14 +117,14 @@ public class CounterHologramRenderer {
             line3 = Component.literal("§bSpeed: §a§l~" + String.format("%.0f", rateMin) + " §7items/min §8(" + String.format("%.1f", rateSec) + "/s)");
         }
 
-        // Line 4: Timer Remaining or Restart prompt
+        // Line 4: Quick interaction guide / countdown remaining
         Component line4;
         if (sign.getTargetDurationSeconds() <= 0) {
-            line4 = Component.literal("§a● Live Rate Feed §8| §7Right-click: reset");
+            line4 = Component.literal("§7Right-click: reset | Shift+Right-click: mode");
         } else if (sign.isFinished()) {
-            line4 = Component.literal("§6★ Test Done! §8| §7Right-click: restart");
+            line4 = Component.literal("§6★ Test Finished! §8| §7Right-click: restart");
         } else {
-            line4 = Component.literal("§a⏳ " + sign.getRemainingSeconds() + "s left §8| §7Shift+Click: mode");
+            line4 = Component.literal("§a⏳ " + sign.getRemainingSeconds() + "s remaining §8| §7Right-click: reset");
         }
 
         // Submitting billboard nametags spaced along Y with seeThrough=true

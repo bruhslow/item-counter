@@ -112,16 +112,16 @@ public class ItemCounterHudEditScreen extends Screen {
         if (sampleCounter != null) {
             signName = sampleCounter.getSignCustomName();
             modeName = sampleCounter.getDisplayName();
-            status = sampleCounter.isFinished() ? "§a[DONE]" : (sampleCounter.isRunning() ? "§e[LIVE]" : "§7[PAUSED]");
+            status = sampleCounter.isFinished() ? "§6★ [DONE]" : (sampleCounter.getTargetDurationSeconds() <= 0 ? "§a● [LIVE]" : "§e⏳ [" + modeName + "]");
             count = sampleCounter.getTotalItemsCounted();
             rateMin = sampleCounter.getRatePerMinute();
             money = sampleCounter.getTotalMoneyValue();
             moneyRate = sampleCounter.getMoneyRatePerMinute();
-            timerStr = sampleCounter.getTargetDurationSeconds() <= 0 ? "§a● Live Rate Monitor" : "§a⏳ " + sampleCounter.getRemainingSeconds() + "s remaining";
+            timerStr = sampleCounter.getTargetDurationSeconds() <= 0 ? "§7Continuous Flow Monitor" : "§a⏳ " + sampleCounter.getRemainingSeconds() + "s remaining";
         } else {
             signName = "Iron Farm (Sample)";
             modeName = "30s";
-            status = "§e[LIVE]";
+            status = "§e⏳ [30s]";
             count = 142;
             rateMin = 284;
             money = 1420;
@@ -129,7 +129,7 @@ public class ItemCounterHudEditScreen extends Screen {
             timerStr = "§a⏳ 15s remaining";
         }
 
-        String headerTitle = "§6§l⚡ " + truncate(signName, 15) + " §b[" + modeName + "] " + status;
+        String headerTitle = "§6§l⚡ " + truncate(signName, 16) + " " + status;
         String passedStr = "§fEntity Passed: §e§l" + count + " items §7(~" + String.format("%.0f", rateMin) + "/m)";
 
         graphics.text(this.font, Component.literal(headerTitle), hudX + 5, hudY + 4, 0xFFFFFF, true);
