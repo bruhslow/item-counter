@@ -59,6 +59,14 @@ public class ItemCounterHudRenderer {
         for (Map.Entry<BlockPos, CounterSign> entry : counters.entrySet()) {
             BlockPos pos = entry.getKey();
             if (pos.distSqr(playerPos) <= 64 * 64) {
+                // If sign is broken or destroyed in-world, immediately remove from HUD frame and config
+                net.minecraft.world.level.block.state.BlockState state = client.level.getBlockState(pos);
+                if (state.isAir() || !(state.getBlock() instanceof net.minecraft.world.level.block.SignBlock)) {
+                    counters.remove(pos);
+                    config.removeSignConfig(pos.getX(), pos.getY(), pos.getZ());
+                    continue;
+                }
+
                 SignConfigData sc = config.getOrCreateSignConfig(pos.getX(), pos.getY(), pos.getZ());
                 if (sc.showInHud) {
                     enabledSigns.add(entry.getValue());

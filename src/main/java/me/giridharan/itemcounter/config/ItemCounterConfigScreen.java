@@ -15,6 +15,33 @@ public class ItemCounterConfigScreen {
 
     public static Screen create(Screen parent) {
         ItemCounterConfig config = ItemCounterConfig.getInstance();
+        Minecraft client = Minecraft.getInstance();
+
+        // Clean up any sign configs if the sign block was physically destroyed or text erased
+        if (client.level != null) {
+            config.signConfigs.entrySet().removeIf(entry -> {
+                SignConfigData data = entry.getValue();
+                BlockPos pos = new BlockPos(data.x, data.y, data.z);
+                if (client.level.isLoaded(pos)) {
+                    net.minecraft.world.level.block.state.BlockState state = client.level.getBlockState(pos);
+                    if (state.isAir() || !(state.getBlock() instanceof net.minecraft.world.level.block.SignBlock)) {
+                        CounterManager.getActiveCounters().remove(pos);
+                        return true;
+                    }
+                    net.minecraft.world.level.block.entity.BlockEntity be = client.level.getBlockEntity(pos);
+                    if (be instanceof net.minecraft.world.level.block.entity.SignBlockEntity sign) {
+                        boolean frontHas = CounterManager.hasCounterText(sign.getFrontText());
+                        boolean backHas = CounterManager.hasCounterText(sign.getBackText());
+                        if (!frontHas && !backHas) {
+                            CounterManager.getActiveCounters().remove(pos);
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            });
+            config.save();
+        }
 
         // Sync any active in-world signs into config
         for (BlockPos pos : CounterManager.getActiveCounters().keySet()) {
@@ -157,6 +184,20 @@ public class ItemCounterConfigScreen {
                         Component.literal(config.showCoordinatesInChat ? ("§7World Position: §eX=" + data.x + ", Y=" + data.y + ", Z=" + data.z) : "§8[Location Coordinates Hidden for Privacy]")
                 ).build());
 
+                // 8. Delete / Remove Sign Board Option
+                signSub.add(entryBuilder.startBooleanToggle(
+                                Component.literal("§c🗑 Remove this Sign Board on Save"),
+                                false
+                        )
+                        .setSaveConsumer(remove -> {
+                            if (remove) {
+                                config.removeSignConfig(data.x, data.y, data.z);
+                                CounterManager.getActiveCounters().remove(new BlockPos(data.x, data.y, data.z));
+                            }
+                        })
+                        .setTooltip(Component.literal("Toggle YES and click Save to permanently remove this sign board from your settings."))
+                        .build());
+
                 signsCat.addEntry(signSub.build());
             }
         }
@@ -272,7 +313,6 @@ public class ItemCounterConfigScreen {
 
             if (!wasEnabled && wantsEnabled) {
                 // Must ask TWO TIMES before enabling coordinates!
-                Minecraft client = Minecraft.getInstance();
                 ItemCounterConfirmation.requestEnableCoordinates(client, parent, () -> {
                     config.showCoordinatesInChat = true;
                     config.save();

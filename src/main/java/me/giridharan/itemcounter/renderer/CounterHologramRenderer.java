@@ -39,11 +39,22 @@ public class CounterHologramRenderer {
             Map<BlockPos, CounterSign> counters = CounterManager.getActiveCounters();
             if (counters.isEmpty()) return;
 
+            net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
+            if (client.level == null) return;
+
             Vec3 camPos = camera.pos;
 
             for (Map.Entry<BlockPos, CounterSign> entry : counters.entrySet()) {
                 BlockPos pos = entry.getKey();
                 CounterSign sign = entry.getValue();
+
+                // If sign was physically broken or removed, immediately stop rendering hologram
+                net.minecraft.world.level.block.state.BlockState state = client.level.getBlockState(pos);
+                if (state.isAir() || !(state.getBlock() instanceof net.minecraft.world.level.block.SignBlock)) {
+                    counters.remove(pos);
+                    config.removeSignConfig(pos.getX(), pos.getY(), pos.getZ());
+                    continue;
+                }
 
                 SignConfigData sc = config.getOrCreateSignConfig(pos.getX(), pos.getY(), pos.getZ());
                 if (!sc.showHologram) {

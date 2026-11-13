@@ -88,18 +88,20 @@ public class CounterManager {
             if (level.isLoaded(pos)) {
                 BlockState state = level.getBlockState(pos);
                 if (state.isAir() || !(state.getBlock() instanceof SignBlock)) {
-                    // Sign was physically broken/removed
+                    // Sign was physically broken/removed: immediately purge from active tracking and config
                     it.remove();
+                    ItemCounterConfig.getInstance().removeSignConfig(pos.getX(), pos.getY(), pos.getZ());
                     continue;
                 }
 
                 BlockEntity be = level.getBlockEntity(pos);
                 if (be instanceof SignBlockEntity sign) {
-                    // If text was erased and no longer contains "counter", remove counter
+                    // If text was erased and no longer contains "counter", remove counter from tracking and config
                     boolean frontHas = hasCounterText(sign.getFrontText());
                     boolean backHas = hasCounterText(sign.getBackText());
                     if (!frontHas && !backHas) {
                         it.remove();
+                        ItemCounterConfig.getInstance().removeSignConfig(pos.getX(), pos.getY(), pos.getZ());
                         continue;
                     }
                 }
