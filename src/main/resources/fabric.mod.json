@@ -3,7 +3,7 @@
   "id": "itemcounter",
   "version": "1.5.7+26.x",
   "name": "Item Counter",
-  "description": "Converts any sign board into an active real-time farm item counter by typing 'counter'.\n• Measures items moving strictly in front of the sign face along water & ice streams.\n• Movable on-screen Live Watch sidebar with items/min speed & farm value calculations.\n• Features 3D floating holograms, multi-key keybinds, and remote chunk-loaded stream tracking.\n• Exclusively for Minecraft 26.x.",
+  "description": "Real-time farm item counter and live watch HUD for Minecraft 26.x. Track items, rates, economy values, and 3D floating holograms with in-world sign boards.",
   "authors": [
     "Slowbag"
   ],
